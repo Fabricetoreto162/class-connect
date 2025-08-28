@@ -1,0 +1,45 @@
+body {
+   
+      color: black;
+      height: 100vh;
+      font-family: poppins;
+    
+    }
+
+ .welcome-box {
+  
+     margin-top:100px;
+     padding: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+   
+      
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    nav{
+          
+        backdrop-filter: saturate(200%) blur(30px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    .navbar-brand span{
+        font-weight: bolder;
+        font-size: 35px;
+        font-family: cubic;
+        text-shadow: rgba(60, 93, 50, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px;
+
+}
+
+
+ .navbar-brand {
+text-decoration: none;
+
+ }
+
+ .lien a{
+  text-decoration: none;
+ }

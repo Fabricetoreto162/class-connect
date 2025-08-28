@@ -1,0 +1,163 @@
+
+
+*{
+    font-family: poppins;
+}
+
+.image{
+    border-radius: 100%;
+}
+
+
+
+
+.bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+
+        
+      }
+
+     .bd-placeholder-img {
+        color:red;
+      }
+
+      .connect{
+        font-family: cubic;
+        font-weight: bolder;
+      }
+
+      .sidebar{
+        z-index: 10;
+      }
+
+      .ul1 li{
+          margin: 0.2rem 0;
+      }
+
+        .ul1 li a:hover{
+          background-color:rgb(235, 241, 243);
+          color: #ffc107;
+           
+        }
+
+        .main{
+
+          
+          margin-left: 8% !important;
+          
+
+        }
+
+        .modal{
+            min-width:100vw !important;
+        }
+
+        .parametre{
+            font-size: 2.4rem;
+            background-color: #ffc107;
+            margin-bottom: 20px;
+            border-radius: 100%;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+           
+            
+        }
+
+
+      .mentor-container {
+      display: flex;
+      justify-content: center;
+      gap: 50px;
+      flex-wrap: wrap;
+    }
+    canvas {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+          
+
+
+       
+
+
+
+
+
+    /* Style de base - pour mobile (barre de défilement visible) */
+    #professeursModal .modal-body {
+        overflow-y: auto;
+        max-height: 70vh;
+    }
+    
+    /* Pour les écrans larges (ordinateurs) - barre de défilement cachée */
+    @media (min-width: 992px) {
+        #professeursModal .modal-dialog {
+            max-width: 90%;
+            width: 90%;
+        }
+        
+        #professeursModal .modal-body {
+            overflow: hidden;
+            max-height: none;
+        }
+        
+        #professeursModal .table-responsive {
+            overflow: visible;
+        }
+    }
+    
+    /* Pour les très grands écrans */
+    @media (min-width: 1200px) {
+        #professeursModal .modal-dialog {
+            max-width: 1100px;
+        }
+    }
+
+    .users{
+      transform: translateY(50px, 0);
+    }
+
+
+
+
+
+
+
+
+
+
+
+     .card-header {
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border-bottom: 1px solid rgba(0,0,0,.125);
+        }
+        .stat-card {
+            transition: transform 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .filiere-card {
+            transition: all 0.3s;
+        }
+        .filiere-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        }
+
+
