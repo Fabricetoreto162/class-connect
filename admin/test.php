@@ -1,5 +1,6 @@
 <?php
 session_start();
+include("../connexion-bases.php");
 
 if (!isset($_SESSION["Nom"])){
     header("Location:connexion-admin.php");
@@ -13,88 +14,77 @@ if (isset($_POST["deconnexion"])){
     exit();
 }
 
-include("../connexion-bases.php");
-$resultat = $connecter->query("SELECT student_id, matricule, first_name, last_name, birth_date, contact, gender, email,statut FROM students");
+$resultat = $connecter->query("SELECT teacher_id, first_name, last_name FROM teachers");
 
-/// recuperation des niveaux avec les filieres respectives pour l'affichage
-$recuperation_niveau =$connecter->prepare("SELECT l.level_id, l.level_name, d.department_name
-FROM levels l
-JOIN departments d ON l.department_id = d.department_id");
-$recuperation_niveau->execute();
-$resultat_niveau=$recuperation_niveau->fetchAll();
+$sql ="SELECT * FROM subjects";
+$subjects = $connecter->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
-// Suppression d'un étudiant
-if (isset($_GET['action']) && $_GET['action'] === 'delete_etudiant' && isset($_GET['id'])) {
-    $student_id = intval($_GET['id']);
-    $deleteStudent = $connecter->prepare("DELETE FROM students WHERE student_id = :id");
-    $deleteStudent->bindParam(':id', $student_id, PDO::PARAM_INT);
-    $deleteStudent->execute();
-    header("Location: gestion-des-etudiant-admin.php");
+if (isset($_POST["enregistre_teacher"])) {
+    if (!empty($_POST['teacher_id']) && !empty($_POST['subject_id']) && !empty($_POST['statut'])) {
+
+        function validation_input($donnes) {
+            return htmlspecialchars(strip_tags(trim($donnes)));
+        }
+
+        $teacher_id = validation_input($_POST['teacher_id']);
+        $subject_id = validation_input($_POST['subject_id']);
+        $statut     = validation_input($_POST['statut']);
+
+        $insert = $connecter->prepare("INSERT INTO teachers_affectation (teacher_id, subject_id, statut)
+                                       VALUES (:teacher_id, :subject_id, :statut)");
+        $insert->bindParam(':teacher_id', $teacher_id);
+        $insert->bindParam(':subject_id', $subject_id);
+        $insert->bindParam(':statut', $statut);
+        $insert->execute();
+    }
+}
+
+//recuperer les information d'un enseignant depuis teachers affcetation table avec les jointures 
+$sql="SELECT 
+    teachers.teacher_id,
+    teachers_affectation.statut,
+    teachers_affectation.id_affectation AS id_affectation,
+    teachers.email,
+    teachers.phone,
+    CONCAT(teachers.first_name, ' ', teachers.last_name) AS professeur,
+    GROUP_CONCAT(subjects.subject_name ORDER BY subjects.subject_name SEPARATOR ',<br><br>') AS matieres_enseignees,
+    GROUP_CONCAT(DISTINCT levels.level_name ORDER BY levels.level_name SEPARATOR ',<br><br>') AS niveaux,
+    GROUP_CONCAT(DISTINCT departments.department_name ORDER BY departments.department_name SEPARATOR ',<br><br>') AS filieres
+FROM teachers_affectation
+JOIN teachers ON teachers_affectation.teacher_id = teachers.teacher_id
+JOIN subjects ON teachers_affectation.subject_id = subjects.subject_id
+JOIN levels ON subjects.level_id = levels.level_id
+JOIN departments ON levels.department_id = departments.department_id
+GROUP BY teachers.teacher_id;
+";
+$enseignants = $connecter->prepare($sql);
+$enseignants->execute();
+$resultat_enseignants = $enseignants->fetchAll(PDO::FETCH_ASSOC);
+
+//supprimer un enseignant
+if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
+    $teacher_id = intval($_GET['id']);
+    $deleteTeacher_affectation = $connecter->prepare("DELETE FROM teachers_affectation WHERE id_affectation = :id");
+    $deleteTeacher_affectation->bindParam(':id', $teacher_id, PDO::PARAM_INT);
+    $deleteTeacher_affectation->execute();
+    header("Location: gestion-des-enseignants-admin.php");
     exit();
 }
 
-// Mise à jour d'un étudiant
-if (isset($_POST['update_student'])) {
-    $student_id = intval($_POST['student_id']);
-    $level_id = intval($_POST['level']);
+//mettre a jour l'affectation d'un enseignant
+if (isset($_POST['update_affectation'])) {
+    $id_affectation = intval($_POST['id_affectation']);
+    $teacher_id = intval($_POST['teacher_id']);
+    $subject_id = intval($_POST['subject_id']);
     $statut = $_POST['statut'];
-    $first_name = $_POST['first_name'];
-    $last_name = $_POST['last_name'];
-    $matricule = $_POST['matricule'];
-    $birth_date = $_POST['birth_date'];
-    $contact = $_POST['contact'];
-    $gender = $_POST['gender'];
-    $email = $_POST['email'];
-    
-    $updateStudent = $connecter->prepare("UPDATE students 
-        SET level_id = :level_id, statut = :statut, first_name = :first_name, last_name = :last_name,
-            matricule = :matricule, birth_date = :birth_date, contact = :contact, gender = :gender, email = :email
-        WHERE student_id = :student_id");
-    $updateStudent->bindParam(':level_id', $level_id);
-    $updateStudent->bindParam(':statut', $statut );
-    $updateStudent->bindParam(':first_name', $first_name);
-    $updateStudent->bindParam(':last_name', $last_name );
-    $updateStudent->bindParam(':matricule', $matricule );
-    $updateStudent->bindParam(':birth_date', $birth_date );
-    $updateStudent->bindParam(':contact', $contact);
-    $updateStudent->bindParam(':gender', $gender);
-    $updateStudent->bindParam(':email', $email);
-    $updateStudent->bindParam(':student_id', $student_id);
-    $updateStudent->execute();   
-    header("Location: gestion-des-etudiant-admin.php");
-    exit();
+
+    $update = $connecter->prepare("UPDATE teachers_affectation SET teacher_id = :teacher_id, subject_id = :subject_id, statut = :statut WHERE id_affectation = :id_affectation");
+    $update->bindParam(':teacher_id', $teacher_id);
+    $update->bindParam(':subject_id', $subject_id);
+    $update->bindParam(':statut', $statut);
+    $update->bindParam(':id_affectation', $id_affectation);
+    $update->execute();
 }
-
-/// recuperation des etudiants avec la jointure des niveaux et filieres
-$resultat_students = $connecter->prepare( "
-SELECT 
-    s.student_id, s.matricule, s.first_name, s.last_name, 
-    s.birth_date, s.contact, s.gender, s.email,s.statut,
-    l.level_id, l.level_name, d.department_name
-FROM students s
-LEFT JOIN levels l ON s.level_id = l.level_id
-LEFT JOIN departments d ON l.department_id = d.department_id
-ORDER BY s.last_name ASC
-");
-$resultat_students->execute();
-$resultat_etudiants = $resultat_students->fetchAll();
-
-//compter le nombre d'etudiants
-$total_etudiants = count($resultat_etudiants);
-
-//nombre d'etudiants filles
-$total_filles = $connecter->query("SELECT COUNT(*) FROM students WHERE gender = 'F'");
-$total_filles = $total_filles->fetchColumn();
-
-//nombre d'etudiants garcons
-$total_garcons = $connecter->query("SELECT COUNT(*) FROM students WHERE gender = 'M'");
-$total_garcons = $total_garcons->fetchColumn();
-
-//tous les etudiants actifs
-$total_actifs = $connecter->query("SELECT COUNT(*) FROM students WHERE statut = 'Actif'");
-$total_actifs = $total_actifs->fetchColumn();
-
-
 ?>
 
 <!doctype html>
@@ -105,7 +95,7 @@ $total_actifs = $total_actifs->fetchColumn();
     <meta name="description" content="">
     <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
     <meta name="generator" content="Hugo 0.84.0">
-    <title>Gestion des Étudiants - Class Connect</title>
+    <title>Gestion des Enseignants - Class Connect</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
@@ -248,8 +238,6 @@ $total_actifs = $total_actifs->fetchColumn();
         .stat-teachers { background: linear-gradient(135deg, #f093fb, #f5576c); }
         .stat-users { background: linear-gradient(135deg, #4facfe, #00f2fe); }
         .stat-classrooms { background: linear-gradient(135deg, #43e97b, #38f9d7); }
-        .stat-females { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
-        .stat-males { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); }
         
         /* Header Section */
         .page-header {
@@ -315,6 +303,11 @@ $total_actifs = $total_actifs->fetchColumn();
             border-radius: 15px;
             border: none;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .specialty-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
         }
         
         /* Responsive Design */
@@ -445,13 +438,13 @@ $total_actifs = $total_actifs->fetchColumn();
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" href="gestion-des-etudiant-admin.php">
+                    <a class="nav-link" href="gestion-des-etudiant-admin.php">
                         <i class="fas fa-user-graduate"></i>
                         Gestion des étudiants
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="gestion-des-enseignants-admin.php">
+                    <a class="nav-link active" href="gestion-des-enseignants-admin.php">
                         <i class="fas fa-chalkboard-teacher"></i>
                         Gestion des enseignants
                     </a>
@@ -491,8 +484,8 @@ $total_actifs = $total_actifs->fetchColumn();
             <!-- Header Section -->
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-4 pb-3 mb-4 page-header px-4 mt-4">
                 <div>
-                    <h1 class="h2 mb-1 fw-bold text-primary">Gestion des Étudiants</h1>
-                    <p class="text-muted mb-0">Gestion complète du parcours étudiant</p>
+                    <h1 class="h2 mb-1 fw-bold text-primary">Gestion des Enseignants</h1>
+                    <p class="text-muted mb-0">Affectation et gestion du personnel enseignant</p>
                 </div>
                 <div class="d-flex align-items-center gap-3">
                     <div class="date-display">
@@ -521,69 +514,72 @@ $total_actifs = $total_actifs->fetchColumn();
 
             <!-- Stats Cards -->
             <div class="row g-4 mb-4 px-3">
-                <!-- Total Étudiants Card -->
+                <!-- Total Enseignants Card -->
                 <div class="col-xl-3 col-md-6">
                     <div class="card stat-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="text-muted mb-2">Total Étudiants</h6>
-                                    <h2 class="fw-bold text-dark"><?=$total_etudiants?></h2>
-                                    <small class="text-success">Inscrits</small>
+                                    <h6 class="text-muted mb-2">Total Enseignants</h6>
+                                    <h2 class="fw-bold text-dark">10</h2>
+                                    <small class="text-success">Actifs</small>
                                 </div>
-                                <div class="stat-icon stat-students">
-                                    <i class="fas fa-user-graduate text-white"></i>
+                                <div class="stat-icon stat-teachers">
+                                    <i class="fas fa-users text-white"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Filles Card -->
+                <!-- Titulaires Card -->
                 <div class="col-xl-3 col-md-6">
                     <div class="card stat-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="text-muted mb-2">Étudiantes</h6>
-                                    <h2 class="fw-bold text-dark"><?=$total_filles?></h2>
-                                </div>
-                                <div class="stat-icon stat-females">
-                                    <i class="fas fa-female text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Garçons Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Étudiants</h6>
-                                    <h2 class="fw-bold text-dark"><?=$total_garcons?></h2>
-                                </div>
-                                <div class="stat-icon stat-males">
-                                    <i class="fas fa-male text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Actifs Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Étudiants Actifs</h6>
-                                    <h2 class="fw-bold text-dark"><?=$total_actifs?></h2>
+                                    <h6 class="text-muted mb-2">Titulaires</h6>
+                                    <h2 class="fw-bold text-dark">05</h2>
+                                    <small class="text-success">En activité</small>
                                 </div>
                                 <div class="stat-icon stat-users">
-                                    <i class="fas fa-user-check text-white"></i>
+                                    <i class="fas fa-user-tie text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Vacataires Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Vacataires</h6>
+                                    <h2 class="fw-bold text-dark">04</h2>
+                                    <small class="text-success">En mission</small>
+                                </div>
+                                <div class="stat-icon stat-classrooms">
+                                    <i class="fas fa-user-clock text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- En congé Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">En congé</h6>
+                                    <h2 class="fw-bold text-dark">01</h2>
+                                    <small class="text-info">Absents</small>
+                                </div>
+                                <div class="stat-icon stat-students">
+                                    <i class="fas fa-umbrella-beach text-white"></i>
                                 </div>
                             </div>
                         </div>
@@ -591,13 +587,13 @@ $total_actifs = $total_actifs->fetchColumn();
                 </div>
             </div>
 
-            <!-- Students Table Section -->
+            <!-- Teachers Table Section -->
             <div class="row px-3">
                 <div class="col-12">
                     <div class="card table-card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
-                                <i class="fas fa-list me-2"></i> Liste des Étudiants par Filière
+                                <i class="fas fa-list me-2"></i> Liste des Enseignants par Niveau et Filière
                             </h5>
                             <div class="d-flex">
                                 <div class="input-group input-group-sm me-2" style="width: 200px;">
@@ -612,12 +608,14 @@ $total_actifs = $total_actifs->fetchColumn();
                                     </button>
                                     <ul class="dropdown-menu" aria-labelledby="filterDropdown">
                                         <li><a class="dropdown-item" href="#">Tous</a></li>
-                                        <li><a class="dropdown-item" href="#">Actifs</a></li>
-                                        <li><a class="dropdown-item" href="#">Inactifs</a></li>
+                                        <li><a class="dropdown-item" href="#">Titulaires</a></li>
+                                        <li><a class="dropdown-item" href="#">Vacataires</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="#">Par Filière</a></li>
                                     </ul>
                                 </div>
-                                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#addStudentModal">
-                                    <i class="fas fa-plus me-1"></i> Modifier
+                                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+                                    <i class="fas fa-plus me-1"></i> Ajouter
                                 </button>
                             </div>
                         </div>
@@ -627,45 +625,55 @@ $total_actifs = $total_actifs->fetchColumn();
                                     <thead>
                                         <tr>
                                             <th>Nom et Prénom</th>
-                                            <th>Matricule</th>
-                                            <th>E-mail</th>
-                                            <th>Filière</th>
-                                            <th>Sexe</th>
-                                            <th>Date de naissance</th>
                                             <th>Niveau</th>
-                                            <th>Contact</th>
-                                            <th>Status</th>
+                                            <th>Filière</th>
+                                            <th>Matières enseignées</th>
+                                            <th>Statut</th>
+                                            <th>Téléphone</th>
+                                            <th>Email</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach($resultat_etudiants as $etudiant) :?>
+                                        <?php foreach ($resultat_enseignants as $enseignant): ?>
                                         <tr>
                                             <td>
                                                 <div class="d-flex align-items-center">
                                                     <div>
-                                                        <h6 class="mb-0"><?=$etudiant["first_name"]?> <?=$etudiant["last_name"]?></h6>
+                                                        <h6 class="mb-0"><?=$enseignant["professeur"] ?></h6>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td><?=$etudiant["matricule"]?></td>
-                                            <td><?=$etudiant["email"]?></td>
-                                            <td><?=$etudiant['department_name']?></td>
-                                            <td><?=$etudiant["gender"]?></td>
-                                            <td><?=$etudiant["birth_date"]?></td>
-                                            <td><?=$etudiant['level_name']?></td>
                                             <td>
-                                                <small class="d-block"><i class="fas fa-phone text-muted me-1"></i><?=$etudiant["contact"]?></small>
+                                                <div class="d-flex align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-0"><?=$enseignant["niveaux"] ?></h6>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td>
-                                                <span class="badge bg-<?=$etudiant['statut'] == 'Actif' ? 'success' : 'secondary'?>">
-                                                    <?=$etudiant['statut']?>
-                                                </span>
+                                                <div class="d-flex align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-0"><?=$enseignant["filieres"] ?></h6>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary specialty-badge"><?=$enseignant["matieres_enseignees"] ?></span>
+                                            </td>
+                                            <td><span class="badge bg-success"><?=$enseignant["statut"] ?></span></td>
+                                            <td>
+                                                <small class="d-block"><i class="fas fa-phone text-muted me-1"></i><?=$enseignant["phone"] ?></small>
+                                            </td>
+                                            <td>
+                                                <small class="d-block"><i class="fas fa-envelope text-muted me-1"></i><?=$enseignant["email"] ?></small>
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <a class="btn btn-sm btn-outline-danger" 
-                                                       href="gestion-des-etudiant-admin.php?action=delete_etudiant&id=<?=$etudiant['student_id']?>">
+                                                    <a href="gestion-des-enseignants-admin.php?action=edit&id=<?= $enseignant['id_affectation'] ?>" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a class="btn btn-sm btn-outline-danger" href="gestion-des-enseignants-admin.php?action=delete&id=<?=$enseignant['id_affectation']?>">
                                                         <i class="fas fa-trash"></i>
                                                     </a>
                                                 </div>
@@ -701,87 +709,89 @@ $total_actifs = $total_actifs->fetchColumn();
     </div>
 </div>
 
-<!-- Add Student Modal -->
-<div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+<!-- Add Teacher Modal -->
+<div class="modal fade" id="addTeacherModal" tabindex="-1" aria-labelledby="addTeacherModalLabel" aria-hidden="true">   
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addStudentModalLabel">
-                    <i class="fas fa-user-plus me-2"></i> Modifier un(e) étudiant(e)
+                <h5 class="modal-title" id="addTeacherModalLabel">
+                    <i class="fas fa-user-plus me-2"></i> Ajouter un nouvel enseignant
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
+
             <div class="modal-body">
-                <form method="post">
+                <form method="post" action="">
+                    <!-- Sélection de l'enseignant -->
                     <div class="row">
-                        <label for="students" class="form-label">Sélectionner un étudiant</label>
-                        <select class="form-control" name="students" onchange="chargerInfos(this.value)" required>
+                        <label for="teachers" class="form-label">Sélectionner un enseignant</label>
+                        <select class="form-control" name="teacher_id" id="teachers" onchange="chargerInfos(this.value)" required>
                             <option value="">-- Sélectionner --</option>
-                            <?php 
-                            $resultat = $connecter->query("SELECT student_id, matricule, first_name, last_name, birth_date, contact, gender, email,statut FROM students");
-                            while($retour = $resultat->fetch()): ?>
-                                <option value="<?=$retour['student_id']?>">
-                                    <?=$retour['first_name'] . " " . $retour['last_name']?>
+                            <?php while($retour = $resultat->fetch()): ?>
+                                <option value="<?= $retour['teacher_id'] ?>">
+                                    <?= htmlspecialchars($retour['first_name'] . " " . $retour['last_name']) ?>
                                 </option>
                             <?php endwhile; ?>
                         </select>
                     </div>
+
+                    <!-- Champs auto-remplis -->
                     <div class="row mt-3">
                         <div class="col-md-6 mb-3">
-                            <label for="student_id" class="form-label">ID Étudiant</label>
-                            <input type="text" name="student_id" class="form-control" id="student_id" value="" required readonly>
+                            <label for="prenom" class="form-label">Prénom</label>
+                            <input type="text" name="prenom" id="prenom" class="form-control" readonly>
                         </div>
+
                         <div class="col-md-6 mb-3">
-                            <label for="matricule" class="form-label">Matricule</label>
-                            <input type="text" name="matricule" class="form-control" id="matricule" value="" required>
+                            <label for="nom" class="form-label">Nom</label>
+                            <input type="text" name="nom" id="nom" class="form-control" readonly>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="first_name" class="form-label">Prénom</label>
-                            <input type="text" name="first_name" class="form-control" id="first_name" value="" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="last_name" class="form-label">Nom</label>
-                            <input type="text" name="last_name" class="form-control" id="last_name" value="" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="gender" class="form-label">Sexe</label>
-                            <input type="text" name="gender" class="form-control" id="gender" value="" required>
-                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="email" class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" id="email" value="" required>
+                            <input type="email" name="email" id="email" class="form-control" readonly>
                         </div>
+
                         <div class="col-md-6 mb-3">
-                            <label for="contact" class="form-label">Téléphone</label>
-                            <input type="tel" name="contact" class="form-control" id="contact" value="" required>
+                            <label for="teacherPhone" class="form-label">Téléphone</label>
+                            <input type="number" name="phone" id="teacherPhone" class="form-control" readonly>
                         </div>
+                    </div>
+
+                    <!-- ID caché de l'enseignant -->
+                    <input type="hidden" name="teacher_id_hidden" id="teacher_id">
+
+                    <!-- Sélection matière et statut -->
+                    <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="birth_date" class="form-label">Date de naissance</label>
-                            <input type="date" name="birth_date" class="form-control" id="birth_date" value="" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="niveau" class="form-label">Niveau</label>
-                            <select class="form-select" name="level" id="niveau" required>
-                                <option value="">Sélectionner</option>
-                                <?php foreach ($resultat_niveau as $niveaux): ?>
-                                    <option value="<?=$niveaux['level_id']?>">
-                                        <?=htmlspecialchars($niveaux['level_name']." ".'('.( $niveaux['department_name']).')')?>
+                            <label for="teacherSubject" class="form-label">Matière enseignée</label>
+                            <select class="form-select" id="teacherSubject" name="subject_id" required>
+                                <option value="">-- Sélectionner une matière --</option>
+                                <?php foreach ($subjects as $subject): ?>
+                                    <option value="<?= htmlspecialchars($subject['subject_id']) ?>">
+                                        <?= htmlspecialchars($subject['subject_name']) ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
+
                         <div class="col-md-6 mb-3">
-                            <label for="statut" class="form-label">Statut</label>
-                            <select class="form-select" name="statut" id="statut" required>
-                                <option value="">Sélectionner</option>
-                                <option value="Actif">Actif</option>
-                                <option value="Inactif">Inactif</option>
+                            <label for="teacherStatus" class="form-label">Statut</label>
+                            <select class="form-select" id="teacherStatus" name="statut" required>
+                                <option value="">-- Sélectionner --</option>
+                                <option value="titulaire">Titulaire</option>
+                                <option value="vacataire">Vacataire</option>
+                                <option value="contractuel">Contractuel</option>
                             </select>
                         </div>
                     </div>
+
+                    <!-- Boutons -->
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                        <button type="submit" name="update_student" class="btn btn-primary">Mettre à jour</button>
+                        <button type="submit" class="btn btn-primary" name="enregistre_teacher">Enregistrer</button>
                     </div>
                 </form>
             </div>
@@ -789,25 +799,91 @@ $total_actifs = $total_actifs->fetchColumn();
     </div>
 </div>
 
+<!-- Edit Teacher Modal -->
+<div class="modal fade" id="editTeacherModal" tabindex="-1" aria-labelledby="editTeacherModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editTeacherModalLabel">
+                    <i class="fas fa-user-edit me-2"></i> Modifier l'affectation de l'enseignant
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="">
+                    <input type="hidden" name="id_affectation" id="edit_id_affectation">
+
+                    <div class="row">
+                        <label for="edit_teachers" class="form-label">Sélectionner un enseignant</label>
+                        <select class="form-control" name="teacher_id" id="edit_teachers" required>
+                            <option value="">-- Sélectionner --</option>
+                            <?php 
+                            $allTeachers = $connecter->query("SELECT teacher_id, first_name, last_name FROM teachers");
+                            while($retour = $allTeachers->fetch()): ?>
+                                <option value="<?= $retour['teacher_id'] ?>">
+                                    <?= htmlspecialchars($retour['first_name'] . " " . $retour['last_name']) ?>
+                                </option>
+                            <?php endwhile; ?>  
+                        </select>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_teacherSubject" class="form-label">Matière enseignée</label>
+                            <select class="form-select" id="edit_teacherSubject" name="subject_id" required>
+                                <option value="">-- Sélectionner une matière --</option>
+                                <?php foreach ($subjects as $subject): ?>
+                                    <option value="<?= htmlspecialchars($subject['subject_id']) ?>">
+                                        <?= htmlspecialchars($subject['subject_name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_teacherStatus" class="form-label">Statut</label>
+                            <select class="form-select" id="edit_teacherStatus" name="statut" required>
+                                <option value="">-- Sélectionner --</option>
+                                <option value="titulaire">Titulaire</option>
+                                <option value="vacataire">Vacataire</option>
+                                <option value="contractuel">Contractuel</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary" name="update_affectation">Mettre à jour</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
 <script src="../bootstrap-5.3.7/bootstrap-5.3.7/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-function chargerInfos(student_id) {
-    if (student_id === "") return;
+function chargerInfos(teacher_id) {
+    if (teacher_id === "") return;
 
-    fetch("get_student.php?id=" + student_id)
+    fetch("get_enseignant.php?id=" + teacher_id)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
                 alert(data.error);
             } else {
-                document.getElementById("student_id").value = data.student_id;
-                document.getElementById("matricule").value = data.matricule;
-                document.getElementById("first_name").value = data.first_name;
-                document.getElementById("last_name").value = data.last_name;
-                document.getElementById("birth_date").value = data.birth_date;
-                document.getElementById("contact").value = data.contact;
-                document.getElementById("gender").value = data.gender;
+                document.getElementById("teacher_id").value = data.teacher_id;
+                document.getElementById("nom").value = data.first_name;
+                document.getElementById("prenom").value = data.last_name;
                 document.getElementById("email").value = data.email;
+                document.getElementById("teacherPhone").value = data.phone;
             }
         })
         .catch(error => console.error("Erreur :", error));

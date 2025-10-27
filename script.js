@@ -1,5 +1,5 @@
 let message = [
-  "Bienvenue sur Class Connect, votre portail scolaire intelligent !",
+  "Bienvenue sur Class Connect, votre portail universitaire intelligent !",
   "Gérez vos salles, étudiants et notes en toute simplicité.",
   "Découvrez une nouvelle façon d'apprendre et d'enseigner.",
   "Class Connect : l'avenir de l'éducation à portée de main !",

@@ -1,10 +1,8 @@
 <?php
 session_start();
 
-if (!isset($_SESSION["Nom"])){
-    header("Location:connexion-admin.php");
-    exit();
-}
+include("../init.php");
+
 
 if (isset($_POST["deconnexion"])){
     $_SESSION = array();
@@ -13,414 +11,703 @@ if (isset($_POST["deconnexion"])){
     exit();
 }
 
+// Requête pour compter uniquement les étudiants
+$sql1=$connecter->prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'etudiant' ");
+$sql1->execute();
+$resultat1=$sql1->fetch();
+
+
+if ($resultat1) {
+    $row1 = $resultat1;
+    $nombres_etudiant=$row1['total'];
+   
+} else {
+    $nombres_etudiant= 0; // Valeur par défaut si la requête échoue
+}
+// fin requête pour compter uniquement les étudiants
+
+// Requête pour compter uniquement les enseignants
+$sql2=$connecter->prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'enseignant'");
+$sql2->execute();
+$resultat2=$sql2->fetch();
+
+
+if ($resultat2) {
+    $row2 = $resultat2;
+    $nombres_enseignant=$row2['total'];
+   
+} else {
+    $nombres_enseignant= 0; // Valeur par défaut si la requête échoue
+}
+// fin requête pour compter uniquement les enseignants  
+
+// Requête pour compter toutes les users
+$sql3=$connecter->prepare("SELECT COUNT(*) AS total FROM users ");
+$sql3->execute();
+$resultat3=$sql3->fetch();
+
+
+if ($resultat3) {
+    $row3 = $resultat3;
+    $nombres_users=$row3['total'];
+   
+} else {
+    $nombres_users= 0; // Valeur par défaut si la requête échoue
+}
+// fin requête pour compter toutes les users 
+
+
 
 ?>
 
-
-
-
-
-
-
-
-
-
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
     <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
     <meta name="generator" content="Hugo 0.84.0">
-    <title>Administrateur</title>
+    <title>Tableau de Bord Administrateur - Class Connect</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-      <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
-
-    <link rel="canonical" href="https://getbootstrap.com/docs/5.0/examples/dashboard/">
-
-    <!----font awesome-->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.0/css/all.min.css" integrity="sha512-DxV+EoADOkOygM4IR9yXP8Sb2qwgidEmeqAEmDKIOfPRQZOWbXCzLC6vjbZyy0vPisbH2SyW27+ddLVCN+OMzQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
     <!-- Bootstrap core CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">    <!-- Favicons -->
-    <meta name="theme-color" content="#7952b3">
-    <link rel="stylesheet" href="style.css">
-  </head>
-  <body>
+     <link rel="stylesheet" href="../bootstrap-5.3.7\bootstrap-5.3.7\dist\css\bootstrap.min.css">
+     <link rel="stylesheet" href="../fontawesome\css\all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --accent: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4cc9f0;
+            --warning: #ffd60a;
+            --info: #4cc9f0;
+        }
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header Styles */
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: var(--primary) !important;
+        }
+        
+        .main-header {
+            background-color:white;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+        }
+        
+        /* Main Container */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Sidebar Styles */
+        .sidebar {
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            min-height: calc(100vh - 73px);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            flex-shrink: 0;
+            padding-inline: 15px;
+            padding-bottom: 20px;
+        }
+        
+        .sidebar .nav-link {
+            color:rgb(255, 193, 7) !important;
+            padding: 10px 20px;
+            margin: 4px 0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .sidebar .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link.active {
+            background: var(--light);
+            color:rgb(255, 193, 7)  !important;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        }
+        
+        .sidebar .nav-link i {
+            width: 20px;
+            margin-right: 10px;
+            text-align: center;
+        }
+        
+        /* Main Content Wrapper */
+        .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: calc(100vh - 73px);
+            overflow-y: auto;
+        }
+        
+        /* Main Content Styles */
+        .main-content {
+            background: #f8f9fa;
+            flex: 1;
+            padding-bottom: 2rem;
+        }
+        
+        /* Card Styles */
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-card .card-body {
+            padding: 25px;
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .stat-students { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .stat-teachers { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .stat-users { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .stat-classrooms { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+        .stat-females { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+        .stat-males { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); }
+        .stat-filieres { background: linear-gradient(135deg, #ffecd2, #fcb69f); }
+        .stat-courses { background: linear-gradient(135deg, #84fab0, #8fd3f4); }
+        
+        /* Header Section */
+        .page-header {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .user-dropdown {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 25px;
+            padding: 8px 20px;
+            color: white;
+            font-weight: 500;
+        }
+        
+        .user-dropdown:hover {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            transform: translateY(-2px);
+        }
+        
+        .date-display {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            padding: 8px 20px;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        /* Footer Styles */
+        .main-footer {
+            background: white;
+            border-top: 1px solid #e9ecef;
+            margin-top: auto;
+            flex-shrink: 0;
+            width: 100%;
+        }
+        
+        .settings-btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .settings-btn:hover {
+            transform: rotate(45deg);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                z-index: 1000;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                min-height: 100vh;
+                top: 0;
+                padding-top: 73px;
+                width: 75vw !important;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .content-wrapper {
+                margin-left: 0 !important;
+            }
+            
+            .stat-card {
+                margin-bottom: 1rem;
+            }
+            
+            .main-container {
+                flex-direction: column;
+            }
+        }
+        
+        /* Animation for cards */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .stat-card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        
+        /* Custom scrollbar for sidebar */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .sidebar::-webkit-scrollbar-track {
+            background: #2c3e50;
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 3px;
+        }
+        
+        /* Custom scrollbar for main content */
+        .content-wrapper::-webkit-scrollbar {
+            width: 15px !important;
+        }
+        
+        .content-wrapper::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .content-wrapper::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+        
+        .content-wrapper::-webkit-scrollbar-thumb:hover {
+            background: var(--warning);
+        }
+        
+        /* Ensure proper height calculations */
+        @media (min-width: 769px) {
+            .sidebar {
+                height: calc(100vh - 73px);
+                position: sticky;
+                top: 73px;
+                width: 25vw !important;
+            }
+        }
+    </style>
+</head>
+<body>
     
-<header class="navbar nav-bar navbar-dark  sticky-top bg-light flex-md-nowrap p-3 z-index-1 shadow"  >
-  <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 text-dark" href="#">Class <span class="connect text-warning">Connect</span></a>
-   <button class="navbar-toggler position-absolute bg-dark  mx-2 d-md-none end-0  collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon  " ></span>
-  </button>
- 
-  <div class="d-flex w-100  justify-content-start align-items-center">
-         <form action=""  class="  " method="post">
-          <input type="submit" class="mx-2 lien border-0 no-focus bg-light"  name="deconnexion" value="Deconnexion"> 
-        </form>
-      
-  </div>
-   
+<header class="navbar navbar-light sticky-top main-header flex-md-nowrap p-3">
+    <div class="container-fluid">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0" href="#">
+            <i class="fas fa-graduation-cap me-2"></i>Class <span class="text-warning" style="font-family: cubic;">Connect</span>
+        </a>
+        
+        
+
+        <div class="d-flex align-items-center ">
+            <form action="" method="post" class="">
+                <button type="submit" name="deconnexion" class="btn btn-outline-dark btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
+                </button>
+            </form>
+        </div>
+        <button style="margin-inline: 8px !important;" class="navbar-toggler bg-dark d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
 </header>
 
-<div class="container-fluid z-index-2">
-  <div class="row  ">
-    <nav id="sidebarMenu" class="col-md-3  col-lg-2 d-lg-block bg-light sidebar px-0 collapse">
-      <div class="position-fixed bg-dark vh-100 pt-2 mx-0">
-        <ul class="nav flex-column ul1">
-          <li class="nav-item">
-            <a class="nav-link active bg-light text-warning mx-2 rounded" aria-current="page" href="dashbord-admin.php">
-             <i class="fa-solid fa-graduation-cap"></i>
-              Tableau de bord
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="utilisateur-admin.php">
-            <i class="fa-solid fa-users"></i>
-              Utilisateurs
-            </a>
-          </li>
-           <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="fillieres-admin.php">
-             <i class="fa-solid fa-folder"></i>
-              Fillieres
-            </a>
-          </li>
-           <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="cours-admin.php">
-             <i class="fa-solid fa-book"></i>
-              Cours
-            </a>
-          </li>
-           <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="salles-admin.php">
-             <i class="fa-solid fa-school "></i>
-              Salles
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="gestion-des-etudiant-admin.php">
-            <i class="fa-solid fa-user-graduate"></i>
-              Gestions des étudiants
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="gestion-des-enseignants-admin.php">
-              <i class="fa-solid fa-person-chalkboard"></i>
-              Gestions des enseignants
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="gestion-des-emploies-du-temps-admin.php">
-             <i class="fa-solid fa-calendar-days"></i>
-                Gestions des emplois du temps
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="suivis-des-emargements-admin.php">
-             <i class="fa-solid fa-file-signature"></i>
-              Suivi des émargements
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="notes-et-resultats-admin.php">
-              <i class="fa-solid fa-book-open"></i>
-                Notes et résultats
-            </a>
-          </li>
-
-                    <li class="nav-item">
-            <a class="nav-link text-warning mx-2 rounded" href="paiements-et-finance-admin.php">
-              <i class="fa-solid fa-sack-dollar"></i>
-              Paiements et finances
-            </a>
-          </li>
-
-           
-        </ul>
-
-       
-        
-      </div>
+<div class="main-container">
+    <!-- Sidebar -->
+    <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar w-25 collapse ">
+        <div class="pt-3">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="dashbord-admin.php">
+                        <i class="fas fa-chart-line"></i>
+                        Tableau de bord
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="utilisateur-admin.php">
+                        <i class="fas fa-users"></i>
+                        Utilisateurs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="fillieres-admin.php">
+                        <i class="fas fa-folder"></i>
+                        Filières
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="cours-admin.php">
+                        <i class="fas fa-book"></i>
+                        Matières
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="salles-admin.php">
+                        <i class="fas fa-school"></i>
+                        Salles
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="gestion-des-etudiant-admin.php">
+                        <i class="fas fa-user-graduate"></i>
+                        Gestion des étudiants
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="gestion-des-enseignants-admin.php">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        Gestion des enseignants
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="gestion-des-emploies-du-temps-admin.php">
+                        <i class="fas fa-calendar-days"></i>
+                        Gestion des emplois du temps
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="suivis-des-emargements-admin.php">
+                        <i class="fas fa-file-signature"></i>
+                        Suivi des émargements
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="notes-et-resultats-admin.php">
+                        <i class="fas fa-book-open"></i>
+                        Notes et résultats
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="paiements-et-finance-admin.php">
+                        <i class="fas fa-sack-dollar"></i>
+                        Paiements et finances
+                    </a>
+                </li>
+            </ul>
+        </div>
     </nav>
 
-   
-<main class="col-md-9 ms-lg-auto col-lg-10 px-md-4 w-75 ">
-    <!-- Header Section -->
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <div>
-            <h1 class="h2 mb-0">Tableau de Bord</h1>
-            <small class="text-muted">Aperçu global du système</small>
-        </div>
-        
-        <div class="d-flex align-items-center ">
-            <div class="bg-light text-dark rounded-pill px-3 py-1 me-3 shadow-sm">
-                <i class="fas fa-clock me-2"></i>
-                <span id="dateHeure"></span>
-            </div>
-            
-            <div class="dropdown">
-                <button class="btn btn-outline-light bg-warning text-dark dropdown-toggle rounded-pill" type="button" id="userDropdown" data-bs-toggle="dropdown">
-                    <i class="fas fa-user-circle me-1"></i> <?=$_SESSION["Nom"]?>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profil</a></li>
-                    <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Paramètres</a></li>
-                </ul>
-            </div>
-            
-            <img src="../img/image.webp" class="rounded-circle ms-3" style="width:50px; height:50px; object-fit:cover; border: 2px solid #f8f9fa;" alt="Photo de profil">
-        </div>
-    </div>
-
-    <!-- Stats Cards - First Row -->
-    <div class="row g-4 mb-4">
-        <!-- Salles Card -->
-        <div class="col-xl-3 col-md-6">
-            <div class="card card-stat shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-dark mb-2">Salles</h6>
-                            <h3 class="mb-0">22</h3>
-                        </div>
-                        <div class="bg-dark bg-opacity-10 p-3 rounded-circle">
-                            <i class="fas fa-school fa-2x text-light"></i>
-                        </div>
+    <!-- Content Wrapper -->
+    <div class="content-wrapper col-md-9 ms-sm-auto col-lg-10 px-0">
+        <!-- Main Content -->
+        <main class="main-content px-md-4">
+            <!-- Header Section -->
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-4 pb-3 mb-4 page-header px-4 mt-4">
+                <div>
+                    <h1 class="h2 mb-1 fw-bold text-primary">Tableau de Bord</h1>
+                    <p class="text-muted mb-0">Aperçu global du système Class Connect</p>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="date-display">
+                        <i class="fas fa-clock me-2"></i>
+                        <span id="dateHeure"></span>
                     </div>
-                    <div class="mt-3">
-                        <span class="badge bg-dark">+2 cette année</span>
+                    <div class="dropdown">
+                        <button class="btn user-dropdown dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-2"></i><?=$_SESSION["Nom"];?>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profil</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Paramètres</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="" method="post" >
+                                    <button type="submit" name="deconnexion" class="dropdown-item text-danger">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Étudiants Card -->
-        <div class="col-xl-3 col-md-6">
-            <div class="card card-stat shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-dark mb-2">Étudiants</h6>
-                            <h3 class="mb-0">25</h3>
+
+            <!-- Stats Cards - First Row -->
+            <div class="row g-4 mb-4 px-3">
+                <!-- Salles Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Salles</h6>
+                                    <h2 class="fw-bold text-dark">22</h2>
+                                    <small class="text-success">+2 cette semaine</small>
+                                </div>
+                                <div class="stat-icon stat-classrooms">
+                                    <i class="fas fa-school text-white"></i>
+                                </div>
+                            </div>
                         </div>
-                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
-                            <i class="fas fa-user-graduate fa-2x text-light"></i>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <span class="badge bg-danger">+5 ce semestre</span>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Professeurs Card -->
-        <div class="col-xl-3 col-md-6">
-            <div class="card card-stat shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-dark mb-2">Professeurs</h6>
-                            <h3 class="mb-0">10</h3>
-                        </div>
-                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                            <i class="fas fa-chalkboard-teacher fa-2x text-light"></i>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <span class="badge bg-success">+2 nouveaux</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Utilisateurs Card -->
-        <div class="col-xl-3 col-md-6">
-            <div class="card card-stat shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-dark mb-2">Utilisateurs</h6>
-                            <h3 class="mb-0">100</h3>
-                        </div>
-                        <div class="bg-info bg-opacity-10 p-3 rounded-circle">
-                            <i class="fas fa-users fa-2x text-light"></i>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <span class="badge bg-info">15 admins</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stats Cards - Second Row -->
-    <div class="row g-4 mb-4">
-        <!-- Filles Card -->
-        <div class="col-xl-3 col-md-6">
-            <div class="card card-stat shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-dark mb-2">Filles</h6>
-                            <h3 class="mb-0">5</h3>
-                        </div>
-                        <div class="bg-dark bg-opacity-10 p-3 rounded-circle">
-                            <i class="fas fa-person-dress fa-2x text-light"></i>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <span class="badge bg-dark">20% du total</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Garçons Card -->
-        <div class="col-xl-3 col-md-6">
-            <div class="card card-stat shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-dark mb-2">Garçons</h6>
-                            <h3 class="mb-0">15</h3>
-                        </div>
-                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
-                            <i class="fas fa-person fa-2x text-light"></i>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <span class="badge bg-danger">60% du total</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Filières Card -->
-        <div class="col-xl-3 col-md-6">
-            <div class="card card-stat shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-dark mb-2">Filières</h6>
-                            <h3 class="mb-0">10</h3>
-                        </div>
-                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
-                            <i class="fas fa-folder fa-2x text-light"></i>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <span class="badge bg-success">5 actives</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Nouveau Card (espace pour une future métrique) -->
-        <div class="col-xl-3 col-md-6">
-            <div class="card card-stat shadow-sm border-0 h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-dark mb-2">Cours</h6>
-                            <h3 class="mb-0">42</h3>
-                        </div>
-                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
-                            <i class="fas fa-book-open fa-2x text-light"></i>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <span class="badge bg-primary">+5 ce mois</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-   
-
-
-
-
-</main>
-
-
-
-
-
-
-      <footer class="footer py-4  w-75  ms-lg-auto ">
-        <div class="container-fluid">
-          <div class="row align-items-center justify-content-lg-between">
-            <div class="col-lg-6 mb-lg-0 mb-4">
-              <div class="copyright text-center text-sm text-dark text-lg-start w-100">
-                © 2025 , made with <i class="fa fa-heart"></i> by
-                <a href="https://www.creative-tim.com" class="font-weight-bold " target="_blank">Fabrice DEV</a> Web Developer.
                 
-                 <a class=" text-success parametre  position-absolute my-4 z-index-100 end-0 px-3 py-2" href="">
-                     <i class="fa-solid fa-gear " ></i>
-               </a>
-              </div>
-             
+                <!-- Étudiants Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Étudiants</h6>
+                                    <h2 class="fw-bold text-dark"><?=$nombres_etudiant?></h2>
+                                    <small class="text-success">Actifs</small>
+                                </div>
+                                <div class="stat-icon stat-students">
+                                    <i class="fas fa-user-graduate text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Enseignants Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Enseignants</h6>
+                                    <h2 class="fw-bold text-dark"><?=$nombres_enseignant?></h2>
+                                    <small class="text-success">En activité</small>
+                                </div>
+                                <div class="stat-icon stat-teachers">
+                                    <i class="fas fa-chalkboard-teacher text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Utilisateurs Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Utilisateurs</h6>
+                                    <h2 class="fw-bold text-dark"><?=$nombres_users?></h2>
+                                    <small class="text-success">Total plateforme</small>
+                                </div>
+                                <div class="stat-icon stat-users">
+                                    <i class="fas fa-users text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-           
-          </div>
-        </div>
-      </footer>
 
+            <!-- Stats Cards - Second Row -->
+            <div class="row g-4 px-3">
+                <!-- Filles Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Étudiantes</h6>
+                                    <h2 class="fw-bold text-dark">5</h2>
+                                    <small class="text-info">25% du total</small>
+                                </div>
+                                <div class="stat-icon stat-females">
+                                    <i class="fas fa-female text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Garçons Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Étudiants</h6>
+                                    <h2 class="fw-bold text-dark">15</h2>
+                                    <small class="text-info">75% du total</small>
+                                </div>
+                                <div class="stat-icon stat-males">
+                                    <i class="fas fa-male text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Filières Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Filières</h6>
+                                    <h2 class="fw-bold text-dark">10</h2>
+                                    <small class="text-success">Actives</small>
+                                </div>
+                                <div class="stat-icon stat-filieres">
+                                    <i class="fas fa-folder text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cours Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Cours</h6>
+                                    <h2 class="fw-bold text-dark">42</h2>
+                                    <small class="text-success">En progression</small>
+                                </div>
+                                <div class="stat-icon stat-courses">
+                                    <i class="fas fa-book-open text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
 
-  </div>
+        <!-- Footer -->
+        <footer class="main-footer bg-dark py-4 mt-auto">
+            <div class="container-fluid">
+                <div class="row align-items-center justify-content-between">
+                    <div class="col-lg-11">
+                        <div class="copyright text-center text-lg-start">
+                            <p class="mb-0 text-light">&copy; 2025 Class Connect. Tous droits réservés.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-1 text-lg-end text-center mt-3 mt-lg-0">
+                        <button class="btn settings-btn">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
 </div>
-
-
-
-
-  
-
-
-
+<script src="../bootstrap-5.3.7\bootstrap-5.3.7\dist\js\bootstrap.bundle.min.js"></script>
 <script>
     function afficherDateHeure() {
-      const maintenant = new Date();
+        const maintenant = new Date();
+        const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+        const mois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
-      const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-      const mois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+        const jourSemaine = jours[maintenant.getDay()];
+        const jour = maintenant.getDate();
+        const moisActuel = mois[maintenant.getMonth()];
+        const annee = maintenant.getFullYear();
+        const heures = maintenant.getHours().toString().padStart(2, '0');
+        const minutes = maintenant.getMinutes().toString().padStart(2, '0');
+        const secondes = maintenant.getSeconds().toString().padStart(2, '0');
 
-      const jourSemaine = jours[maintenant.getDay()];
-      const jour = maintenant.getDate();
-      const moisActuel = mois[maintenant.getMonth()];
-      const annee = maintenant.getFullYear();
-
-      const heures = maintenant.getHours().toString().padStart(2, '0');
-      const minutes = maintenant.getMinutes().toString().padStart(2, '0');
-      const secondes = maintenant.getSeconds().toString().padStart(2, '0');
-
-      const texte = `${jourSemaine} ${jour} ${moisActuel} ${annee} - ${heures}:${minutes}:${secondes}`;
-
-      document.getElementById("dateHeure").innerText = texte;
+        const texte = `${jourSemaine} ${jour} ${moisActuel} ${annee} - ${heures}:${minutes}:${secondes}`;
+        document.getElementById("dateHeure").innerText = texte;
     }
 
-    // Affiche la date et met à jour chaque seconde
     setInterval(afficherDateHeure, 1000);
-    afficherDateHeure(); // première exécution immédiate
-  </script>
- 
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js" integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous"></script>
-  </body>
+    afficherDateHeure();
+
+    // Animation pour les cartes au chargement
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.stat-card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+        });
+        
+        // Gestion de la hauteur du sidebar sur mobile
+        function handleSidebarHeight() {
+            const sidebar = document.getElementById('sidebarMenu');
+            if (window.innerWidth >= 768) {
+                sidebar.style.height = 'calc(100vh - 73px)';
+            } else {
+                sidebar.style.height = '100vh';
+            }
+        }
+        
+        window.addEventListener('resize', handleSidebarHeight);
+        handleSidebarHeight();
+    });
+</script>
+</body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
