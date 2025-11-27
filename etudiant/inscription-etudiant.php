@@ -4,15 +4,11 @@ session_start();
 $msg1 = "";
 $success_msg = "";
 
+include("../connexion-bases.php");
 if(isset($_POST["Inscription"])){
-    // Début connexion à la base de données  
-    $serveur = "localhost";
-    $name = "root";
-    $password = "";
+   
     
-    try {
-        $connexion_etudiant = new PDO("mysql:host=$serveur;dbname=gestion_des_etudiants", $name, $password);
-        $connexion_etudiant->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+   
 
         if(!empty($_POST["nom"]) && 
            !empty($_POST["prenom"]) &&
@@ -43,7 +39,7 @@ if(isset($_POST["Inscription"])){
             $annee = date("Y");
 
             // Vérifier si l'email existe déjà
-            $check_email = $connexion_etudiant->prepare("SELECT email FROM students WHERE email = :email");
+            $check_email = $connecter->prepare("SELECT email FROM students WHERE email = :email");
             $check_email->bindParam(":email", $email_etudiant);
             $check_email->execute();
             
@@ -51,7 +47,7 @@ if(isset($_POST["Inscription"])){
                 $msg1 = "Cette adresse email est déjà utilisée.";
             } else {
                 // Générer le matricule automatiquement
-                $stmt = $connexion_etudiant->prepare("SELECT matricule FROM students WHERE matricule LIKE :prefix ORDER BY matricule DESC LIMIT 1"); 
+                $stmt = $connecter->prepare("SELECT matricule FROM students WHERE matricule LIKE :prefix ORDER BY matricule DESC LIMIT 1"); 
                 $prefix = "$code/$annee/%";
                 $stmt->execute(['prefix' => $prefix]);
                 $last = $stmt->fetchColumn();
@@ -68,7 +64,7 @@ if(isset($_POST["Inscription"])){
                 $contact = verification_donnees_etudiant($_POST["contact"]);
 
                 // Insertion dans la table students
-                $insertion_etudiant = $connexion_etudiant->prepare("INSERT INTO students(matricule, first_name, last_name, birth_date, contact, gender, email) VALUES(:matricule, :first_name, :last_name, :birth_date, :contact, :gender, :email)"); 
+                $insertion_etudiant = $connecter->prepare("INSERT INTO students(matricule, first_name, last_name, birth_date, contact, gender, email) VALUES(:matricule, :first_name, :last_name, :birth_date, :contact, :gender, :email)"); 
                 $insertion_etudiant->bindParam(":first_name", $nom_etudiant);
                 $insertion_etudiant->bindParam(":last_name", $prenom_etudiant);
                 $insertion_etudiant->bindParam(":matricule", $matricule);
@@ -79,14 +75,14 @@ if(isset($_POST["Inscription"])){
                 $insertion_etudiant->execute();
 
                 // Sélectionner l'id de l'étudiant
-                $selection_etudiant = $connexion_etudiant->prepare("SELECT * FROM students WHERE email = :email");
+                $selection_etudiant = $connecter->prepare("SELECT * FROM students WHERE email = :email");
                 $selection_etudiant->bindParam(":email", $email_etudiant);
                 $selection_etudiant->execute();
                 $resultat_selection_etudiant = $selection_etudiant->fetch();
                 $student_id = $resultat_selection_etudiant["student_id"];
 
                 // Insertion dans la table users
-                $requete_etudiant = $connexion_etudiant->prepare("INSERT INTO users(student_id, password, email, role) VALUES(:student_id, :password, :email, :role)"); 
+                $requete_etudiant = $connecter->prepare("INSERT INTO users(student_id, password, email, role) VALUES(:student_id, :password, :email, :role)"); 
                 $requete_etudiant->bindParam(":student_id", $student_id);
                 $requete_etudiant->bindParam(":password", $password_etudiant);
                 $requete_etudiant->bindParam(":email", $email_etudiant);
@@ -100,9 +96,7 @@ if(isset($_POST["Inscription"])){
         } else {
             $msg1 = "* Merci de remplir tous les champs obligatoires.";
         }
-    } catch(PDOException $e) {
-        $msg1 = "Erreur de connexion à la base de données : " . $e->getMessage();
-    }
+   
 }
 ?>
 <!DOCTYPE html>
@@ -451,7 +445,7 @@ if(isset($_POST["Inscription"])){
                                 
                                 
                                 
-                                <form role="form" method="POST" action="" id="registrationForm">
+                                <form role="form" method="POST" action="" >
                                     <!-- Étape 1: Informations personnelles -->
                                     <div class="form-step active" id="step1">
                                         <h5 class="mb-4">Informations personnelles</h5>

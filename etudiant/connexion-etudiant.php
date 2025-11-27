@@ -3,19 +3,12 @@ session_start();
 $msg1 = "";
 $msg2 = "";
 
+include("../connexion-bases.php");
+
 if (isset($_POST["connexion"])) {
     if (!empty($_POST['email']) && !empty($_POST['password'])) {
-        // Début connexion à la base de données
-        $serveur = "localhost";
-        $name = "root";
-        $password = "";
+        
 
-        try {
-            $connecter = new PDO("mysql:host=$serveur;dbname=gestion_des_etudiants;charset=utf8", $name, $password);
-            $connecter->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        } catch (PDOException $e) {
-            die("Erreur de connexion : " . $e->getMessage());
-        }
 
         // Récupération et sécurisation des données POST
         $email = htmlspecialchars(trim($_POST["email"]));
@@ -73,13 +66,7 @@ if (isset($_POST["connexion"])) {
     }
 }
 
-else {
-    // Si l'utilisateur est déjà connecté, rediriger vers le tableau de bord
-    if (isset($_SESSION["user_id"])) {
-        header("Location: notes-etudiant.php");
-        exit();
-    }
-}
+
 ?>
 <!DOCTYPE html>
 <html lang="fr">

@@ -757,7 +757,7 @@ $nombre_titulaires = $stmt_titulaires->fetchColumn();
                                             </td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                   <a  href="gestion-des-enseignants-admin.php?action=edit&id=<?= $enseignant['id_affectation'] ?>" 
+                                                   <a  href="gestion-des-enseignants-admin.php?action=edit&id=<?=$enseignant['id_affectation'] ?>" 
                                                         class="btn btn-sm btn-outline-primary me-1">
                                                             <i class="fas fa-edit"></i>
                                                         </a>
@@ -906,7 +906,7 @@ $nombre_titulaires = $stmt_titulaires->fetchColumn();
 </div>
 
 <!-- Edit Teacher Modal -->
- <div class="modal fade" id="updateTeacherModal<?= $enseignant['id_affectation'] ?>" tabindex="-1" aria-hidden="true">
+ <div class="modal fade" id="updateTeacherModal<?= $enseignant['id_affectation']?>" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">

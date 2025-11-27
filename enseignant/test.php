@@ -12,23 +12,17 @@ if (isset($_POST["deconnexion"])){
     header("Location:connexion-enseignant.php");
     exit();
 }
-
-include("../connexion-bases.php");
-
-
-
-
 ?>
 
 <!doctype html>
 <html lang="fr">
-<head>
+  <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
     <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
     <meta name="generator" content="Hugo 0.84.0">
-    <title>Espace Enseignant - Class Connect</title>
+    <title>Émargements - Class Connect</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
@@ -157,20 +151,21 @@ include("../connexion-bases.php");
             padding: 25px;
         }
         
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
+        .emargement-card {
+            background: white;
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
         }
         
-        .stat-students { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .stat-subjects { background: linear-gradient(135deg, #f093fb, #f5576c); }
-        .stat-emargements { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-        .stat-presence { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+        .emargement-card .card-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            border: none;
+            padding: 20px;
+        }
         
         /* Header Section */
         .page-header {
@@ -203,46 +198,6 @@ include("../connexion-bases.php");
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         }
         
-        /* Quick Actions */
-        .quick-action-btn {
-            border: 2px solid transparent;
-            border-radius: 15px;
-            padding: 25px 15px;
-            text-align: center;
-            transition: all 0.3s ease;
-            background: white;
-            color: var(--dark);
-            text-decoration: none;
-            display: block;
-        }
-        
-        .quick-action-btn:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            color: var(--dark);
-            text-decoration: none;
-        }
-        
-        .quick-action-btn i {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            display: block;
-        }
-        
-        /* Calendar Styles */
-        .calendar-item {
-            border: none;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            transition: all 0.3s ease;
-        }
-        
-        .calendar-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
         /* Footer Styles */
         .main-footer {
             background: white;
@@ -268,6 +223,24 @@ include("../connexion-bases.php");
         .settings-btn:hover {
             transform: rotate(45deg);
             box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4);
+        }
+        
+        /* Table Styles */
+        .table th {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            font-weight: 500;
+        }
+        
+        .table td {
+            vertical-align: middle;
+            border-color: #e9ecef;
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--success);
+            border-color: var(--success);
         }
         
         /* Responsive Design */
@@ -299,12 +272,8 @@ include("../connexion-bases.php");
                 flex-direction: column;
             }
             
-            .quick-action-btn {
-                padding: 20px 10px;
-            }
-            
-            .quick-action-btn i {
-                font-size: 2rem;
+            .table-responsive {
+                font-size: 0.875rem;
             }
         }
         
@@ -320,7 +289,7 @@ include("../connexion-bases.php");
             }
         }
         
-        .stat-card {
+        .stat-card, .emargement-card {
             animation: fadeInUp 0.6s ease-out;
         }
         
@@ -372,7 +341,7 @@ include("../connexion-bases.php");
 <header class="navbar navbar-light sticky-top main-header flex-md-nowrap p-3">
     <div class="container-fluid">
         <a class="navbar-brand col-md-3 col-lg-2 me-0" href="#">
-            <i class="fas fa-graduation-cap me-2"></i>Class <span class="text-warning" style="font-family: cubic;">Connect</span>
+            <i class="fas fa-graduation-cap me-2"></i>Class <span class="text-warning">Connect</span>
         </a>
         
         <div class="d-flex align-items-center">
@@ -394,25 +363,25 @@ include("../connexion-bases.php");
         <div class="pt-3">
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="enseignant.php">
+                    <a class="nav-link" aria-current="page" href="./enseignant.php">
                         <i class="fas fa-chart-line"></i>
                         Tableau de bord
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="emargement.php">
-                        <i class="fas fa-clipboard-check"></i>
+                    <a class="nav-link active" href="./emargement.php">
+                        <i class="fas fa-calendar-days"></i>
                         Émargement des étudiants
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="notation.php">
+                    <a class="nav-link" href="./notation.php">
                         <i class="fas fa-edit"></i>
                         Notation des étudiants
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="cahier-texte.php">
+                    <a class="nav-link" href="./cahier-texte.php">
                         <i class="fas fa-book"></i>
                         Cahier de texte
                     </a>
@@ -428,8 +397,8 @@ include("../connexion-bases.php");
             <!-- Header Section -->
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-4 pb-3 mb-4 page-header px-4 mt-4">
                 <div>
-                    <h1 class="h2 mb-1 fw-bold text-primary">Tableau de Bord Enseignant</h1>
-                    <p class="text-muted mb-0">Aperçu global de vos activités pédagogiques</p>
+                    <h1 class="h2 mb-1 fw-bold text-primary">Émargements</h1>
+                    <p class="text-muted mb-0">Gestion des présences des étudiants</p>
                 </div>
                 <div class="d-flex align-items-center gap-3">
                     <div class="date-display">
@@ -443,168 +412,93 @@ include("../connexion-bases.php");
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profil</a></li>
                             <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Paramètres</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="" method="post">
+                                    <button type="submit" name="deconnexion" class="dropdown-item text-danger">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                                    </button>
+                                </form>
+                            </li>
                         </ul>
                     </div>
                 </div>
             </div>
 
-            <!-- Stats Cards -->
-            <div class="row g-4 mb-4 px-3">
-                <!-- Étudiants Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Étudiants</h6>
-                                    <h2 class="fw-bold text-dark"></h2>
-                                    
-                                </div>
-                                <div class="stat-icon stat-students">
-                                    <i class="fas fa-users text-white"></i>
-                                </div>
+            <!-- Émargement Card -->
+            <div class="container mt-4">
+                <div class="card emargement-card">
+                    <div class="card-header">
+                        <h4 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Feuille d'Émargement</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <label class="form-label">Matière</label>
+                                <select class="form-select" id="matiere">
+                                    <option value="">Sélectionner...</option>
+                                    <option value="algo">Algorithmique</option>
+                                    <option value="prog">Programmation</option>
+                                    <option value="bdd">Bases de données</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Date</label>
+                                <input type="date" class="form-control" id="date-cours" value="2023-11-15">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Heure début</label>
+                                <input type="time" class="form-control" id="heure-debut" value="08:00">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Heure fin</label>
+                                <input type="time" class="form-control" id="heure-fin" value="10:00">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Salle</label>
+                                <input type="text" class="form-control" id="salle" placeholder="Salle A12">
                             </div>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- Matières Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Matières</h6>
-                                    <h2 class="fw-bold text-dark">4</h2>
-                                    <small class="text-success">Enseignées</small>
-                                </div>
-                                <div class="stat-icon stat-subjects">
-                                    <i class="fas fa-book text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Émargements Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Émargements</h6>
-                                    <h2 class="fw-bold text-dark">12</h2>
-                                    <small class="text-info">Ce mois</small>
-                                </div>
-                                <div class="stat-icon stat-emargements">
-                                    <i class="fas fa-clipboard-list text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Présence Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Taux de Présence</h6>
-                                    <h2 class="fw-bold text-dark">78%</h2>
-                                    <small class="text-success">Moyenne générale</small>
-                                </div>
-                                <div class="stat-icon stat-presence">
-                                    <i class="fas fa-check-circle text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Content Section -->
-            <div class="row g-4 px-3">
-                <!-- Actions Rapides -->
-                <div class="col-lg-8">
-                    <div class="card stat-card h-100">
-                        <div class="card-header bg-primary text-white py-3">
-                            <h4 class="mb-0"><i class="fas fa-bolt me-2"></i>Actions Rapides</h4>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Matricule</th>
+                                        <th>Étudiant</th>
+                                        <th>Présent</th>
+                                        <th>Signature</th>
+                                        <th>Remarques</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="liste-etudiants">
+                                    <tr>
+                                        <td>ETU2023-001</td>
+                                        <td>Dupont Jean</td>
+                                        <td>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" checked>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" placeholder="Initiales">
+                                        </td>
+                                        <td>
+                                            <input type="text" class="form-control form-control-sm" placeholder="Retard, etc.">
+                                        </td>
+                                    </tr>
+                                    <!-- Ajouter d'autres étudiants ici -->
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <a href="emargement.php" class="quick-action-btn text-primary">
-                                        <i class="fas fa-clipboard-check"></i>
-                                        <h6 class="fw-bold mb-1">Émarger les étudiants</h6>
-                                        <small class="text-muted">Marquer la présence</small>
-                                    </a>
-                                </div>
-                                <div class="col-md-6">
-                                    <a href="notation.php" class="quick-action-btn text-success">
-                                        <i class="fas fa-edit"></i>
-                                        <h6 class="fw-bold mb-1">Saisir les notes</h6>
-                                        <small class="text-muted">Évaluer les étudiants</small>
-                                    </a>
-                                </div>
-                                <div class="col-md-6">
-                                    <a href="cahier-texte.php" class="quick-action-btn text-info">
-                                        <i class="fas fa-book"></i>
-                                        <h6 class="fw-bold mb-1">Cahier de texte</h6>
-                                        <small class="text-muted">Gérer le contenu</small>
-                                    </a>
-                                </div>
-                                <div class="col-md-6">
-                                    <a href="#" class="quick-action-btn text-warning">
-                                        <i class="fas fa-file-alt"></i>
-                                        <h6 class="fw-bold mb-1">Rapports</h6>
-                                        <small class="text-muted">Consulter les statistiques</small>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Prochains Cours -->
-                <div class="col-lg-4">
-                    <div class="card stat-card h-100">
-                        <div class="card-header bg-primary text-white py-3">
-                            <h4 class="mb-0"><i class="fas fa-calendar me-2"></i>Prochains Cours</h4>
-                        </div>
-                        <div class="card-body">
-                            <div class="list-group list-group-flush">
-                                <div class="list-group-item calendar-item px-0">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <strong class="text-primary">Algorithmique</strong>
-                                        <span class="badge bg-primary">Aujourd'hui</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between text-muted">
-                                        <small><i class="fas fa-clock me-1"></i>8h-10h</small>
-                                        <small><i class="fas fa-door-open me-1"></i>Salle A12</small>
-                                    </div>
-                                </div>
-                                <div class="list-group-item calendar-item px-0">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <strong class="text-primary">Programmation</strong>
-                                        <span class="badge bg-secondary">Demain</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between text-muted">
-                                        <small><i class="fas fa-clock me-1"></i>10h-12h</small>
-                                        <small><i class="fas fa-door-open me-1"></i>Labo Info</small>
-                                    </div>
-                                </div>
-                                <div class="list-group-item calendar-item px-0">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <strong class="text-primary">Base de données</strong>
-                                        <span class="badge bg-info">Après-demain</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between text-muted">
-                                        <small><i class="fas fa-clock me-1"></i>14h-16h</small>
-                                        <small><i class="fas fa-door-open me-1"></i>Salle B05</small>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-secondary">
+                                <i class="fas fa-print me-1"></i>Imprimer
+                            </button>
+                            <button class="btn btn-success" id="valider-emargement">
+                                <i class="fas fa-check-circle me-1"></i>Valider l'émargement
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -655,7 +549,7 @@ include("../connexion-bases.php");
 
     // Animation pour les cartes au chargement
     document.addEventListener('DOMContentLoaded', function() {
-        const cards = document.querySelectorAll('.stat-card');
+        const cards = document.querySelectorAll('.stat-card, .emargement-card');
         cards.forEach((card, index) => {
             card.style.animationDelay = `${index * 0.1}s`;
         });
@@ -672,6 +566,43 @@ include("../connexion-bases.php");
         
         window.addEventListener('resize', handleSidebarHeight);
         handleSidebarHeight();
+    });
+
+    // Validation de l'émargement
+    document.getElementById('valider-emargement').addEventListener('click', function() {
+        const matiere = document.getElementById('matiere').value;
+        const date = document.getElementById('date-cours').value;
+        
+        if(!matiere || !date) {
+            alert('Veuillez sélectionner une matière et une date');
+            return;
+        }
+        
+        // Enregistrement des données
+        const emargement = {
+            matiere: matiere,
+            date: date,
+            heureDebut: document.getElementById('heure-debut').value,
+            heureFin: document.getElementById('heure-fin').value,
+            salle: document.getElementById('salle').value,
+            etudiants: []
+        };
+        
+        // Récupérer les données des étudiants
+        document.querySelectorAll('#liste-etudiants tr').forEach(tr => {
+            const matricule = tr.cells[0].textContent;
+            const nom = tr.cells[1].textContent;
+            const present = tr.cells[2].querySelector('input').checked;
+            const signature = tr.cells[3].querySelector('input').value;
+            const remarques = tr.cells[4].querySelector('input').value;
+            
+            emargement.etudiants.push({
+                matricule, nom, present, signature, remarques
+            });
+        });
+        
+        console.log('Émargement validé:', emargement);
+        alert('Émargement enregistré avec succès !');
     });
 </script>
 </body>

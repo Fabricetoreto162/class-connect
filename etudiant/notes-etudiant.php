@@ -1,23 +1,108 @@
-
 <?php
 session_start();
+include("../connexion-bases.php");
 
-if( isset($_SESSION["first_name"]) && isset($_SESSION["last_name"]) ){
-    $nom_complet = $_SESSION["first_name"]." ".$_SESSION["last_name"];
-}
-
-
-
-if (!isset($_SESSION["first_name"])){
-    header("Location:connexion-etudiant.php");
+// Vérifie la session utilisateur
+if (!isset($_SESSION["user_id"]) || !isset($_SESSION["first_name"])) {
+    header("Location: connexion-etudiant.php");
     exit();
 }
 
-if (isset($_POST["deconnexion"])){
-    $_SESSION = array();
+$student_id = $_SESSION["user_id"];
+$nom_complet = $_SESSION["first_name"] . " " . $_SESSION["last_name"];
+
+// Déconnexion
+if (isset($_POST["deconnexion"])) {
     session_destroy();
-    header("Location:connexion-etudiant.php");
+    header("Location: connexion-etudiant.php");
     exit();
+}
+
+// ✅ Récupère le semestre (par défaut : Semestre 1)
+$semestre = isset($_GET['semestre']) ? $_GET['semestre'] : 'Semestre 1';
+
+// ✅ Récupération des notes
+$sql = "
+SELECT 
+    s.student_id,
+    CONCAT(s.first_name, ' ', s.last_name) AS etudiant,
+    s.matricule,
+    sub.subject_name AS matiere,
+    sub.coefficient,
+    sem.semester_name AS semestre,
+    ay.year_label AS annee_academique,
+    DATE_FORMAT(a.note_date, '%d-%m-%Y') AS date_note,
+    a.assignment1 AS interrogation1,
+    a.assignment2 AS interrogation2,
+    a.assignment3 AS interrogation3,
+    a.exam1 AS devoir1,
+    a.exam2 AS devoir2,
+        ROUND(
+    (
+        -- Moyenne des assignments
+        (
+            (IFNULL(a.assignment1, 0) + 
+             IFNULL(a.assignment2, 0) + 
+             IFNULL(a.assignment3, 0)
+            ) / 3
+        )
+        +
+        -- Somme des examens
+        (
+            IFNULL(a.exam1, 0) + 
+            IFNULL(a.exam2, 0)
+        )
+            
+    ) / 3
+, 2) AS moyenne
+FROM assignments AS a
+INNER JOIN students AS s ON a.student_id = s.student_id
+INNER JOIN subjects AS sub ON a.subject_id = sub.subject_id
+INNER JOIN semesters AS sem ON sub.semester_id = sem.semester_id
+INNER JOIN academic_years AS ay ON a.academic_year_id = ay.academic_year_id
+WHERE s.student_id = :student_id
+  AND sem.semester_name = :semestre
+ORDER BY sub.subject_name ASC
+";
+
+$stmt = $connecter->prepare($sql);
+$stmt->execute([
+    ':student_id' => $student_id,
+    ':semestre' => $semestre
+]);
+$notes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Calculer les statistiques
+$total_matieres = count($notes);
+$total_credits = array_sum(array_column($notes, 'coefficient'));
+$moyenne_generale = 0;
+$notes_valides = 0;
+
+foreach ($notes as $note) {
+    if ($note['moyenne'] > 0) {
+        $moyenne_generale += $note['moyenne'];
+        $notes_valides++;
+    }
+}
+
+$moyenne_generale = $notes_valides > 0 ? round($moyenne_generale / $notes_valides, 2) : 0;
+
+// Déterminer l'appréciation
+if ($moyenne_generale >= 16) {
+    $appreciation = "Très Bien";
+    $couleur_appreciation = "success";
+} elseif ($moyenne_generale >= 14) {
+    $appreciation = "Bien";
+    $couleur_appreciation = "primary";
+} elseif ($moyenne_generale >= 12) {
+    $appreciation = "Assez Bien";
+    $couleur_appreciation = "info";
+} elseif ($moyenne_generale >= 10) {
+    $appreciation = "Passable";
+    $couleur_appreciation = "warning";
+} else {
+    $appreciation = "Insuffisant";
+    $couleur_appreciation = "danger";
 }
 ?>
 
@@ -169,8 +254,9 @@ if (isset($_POST["deconnexion"])){
         }
         
         .stat-average { background: linear-gradient(135deg, #667eea, #764ba2); }
-        .stat-ranking { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .stat-subjects { background: linear-gradient(135deg, #f093fb, #f5576c); }
         .stat-credits { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .stat-appreciation { background: linear-gradient(135deg, #43e97b, #38f9d7); }
         
         /* Header Section */
         .page-header {
@@ -226,17 +312,34 @@ if (isset($_POST["deconnexion"])){
             vertical-align: middle;
         }
         
-        .nav-tabs .nav-link {
-            color: var(--dark);
-            font-weight: 500;
-            border: none;
-            padding: 12px 24px;
+        .semester-tabs {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 2rem;
         }
         
-        .nav-tabs .nav-link.active {
+        .semester-btn {
+            padding: 12px 30px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: white;
+            color: var(--dark);
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 0 5px;
+        }
+        
+        .semester-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        .semester-btn.active {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
-            border-radius: 10px 10px 0 0;
+            border-color: transparent;
         }
         
         /* Footer Styles */
@@ -326,24 +429,6 @@ if (isset($_POST["deconnexion"])){
             border-radius: 3px;
         }
         
-        /* Custom scrollbar for main content */
-        .content-wrapper::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .content-wrapper::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        
-        .content-wrapper::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 4px;
-        }
-        
-        .content-wrapper::-webkit-scrollbar-thumb:hover {
-            background: var(--warning);
-        }
-        
         /* Ensure proper height calculations */
         @media (min-width: 769px) {
             .sidebar {
@@ -390,7 +475,7 @@ if (isset($_POST["deconnexion"])){
                 <li class="nav-item">
                     <a class="nav-link" href="emplois-du-temps.php">
                         <i class="fas fa-calendar-days"></i>
-                        Emplois du temps
+                        Emploi du temps
                     </a>
                 </li>
                 <li class="nav-item">
@@ -433,14 +518,14 @@ if (isset($_POST["deconnexion"])){
             <!-- Stats Cards -->
             <div class="row g-4 mb-4 px-3">
                 <!-- Moyenne Générale Card -->
-                <div class="col-xl-4 col-md-4">
+                <div class="col-xl-3 col-md-6">
                     <div class="card stat-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <h6 class="text-muted mb-2">Moyenne Générale</h6>
-                                    <h2 class="fw-bold text-dark">14.25</h2>
-                                    <small class="text-success">Bien</small>
+                                    <h2 class="fw-bold text-dark"><?= $moyenne_generale ?></h2>
+                                    <small class="text-<?= $couleur_appreciation ?>"><?= $appreciation ?></small>
                                 </div>
                                 <div class="stat-icon stat-average">
                                     <i class="fas fa-chart-line text-white"></i>
@@ -450,18 +535,18 @@ if (isset($_POST["deconnexion"])){
                     </div>
                 </div>
                 
-                <!-- Classement Card -->
-                <div class="col-xl-4 col-md-4">
+                <!-- Matières Card -->
+                <div class="col-xl-3 col-md-6">
                     <div class="card stat-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="text-muted mb-2">Classement</h6>
-                                    <h2 class="fw-bold text-dark">12<small class="fs-6 text-muted">/45</small></h2>
-                                    <small class="text-info">Top 27%</small>
+                                    <h6 class="text-muted mb-2">Matières</h6>
+                                    <h2 class="fw-bold text-dark"><?= $total_matieres ?></h2>
+                                    <small class="text-success">En cours</small>
                                 </div>
-                                <div class="stat-icon stat-ranking">
-                                    <i class="fas fa-trophy text-white"></i>
+                                <div class="stat-icon stat-subjects">
+                                    <i class="fas fa-book text-white"></i>
                                 </div>
                             </div>
                         </div>
@@ -469,14 +554,14 @@ if (isset($_POST["deconnexion"])){
                 </div>
                 
                 <!-- Crédits Card -->
-                <div class="col-xl-4 col-md-4">
+                <div class="col-xl-3 col-md-6">
                     <div class="card stat-card h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="text-muted mb-2">Crédits Obtenus</h6>
-                                    <h2 class="fw-bold text-dark">48<small class="fs-6 text-muted">/60</small></h2>
-                                    <small class="text-success">80% complétés</small>
+                                    <h6 class="text-muted mb-2">Crédits Totaux</h6>
+                                    <h2 class="fw-bold text-dark"><?= $total_credits ?></h2>
+                                    <small class="text-info">Ce semestre</small>
                                 </div>
                                 <div class="stat-icon stat-credits">
                                     <i class="fas fa-award text-white"></i>
@@ -485,88 +570,202 @@ if (isset($_POST["deconnexion"])){
                         </div>
                     </div>
                 </div>
+                
+                <!-- Appréciation Card -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="text-muted mb-2">Appréciation</h6>
+                                    <h2 class="fw-bold text-dark"><?= $appreciation ?></h2>
+                                    <small class="text-<?= $couleur_appreciation ?>">Niveau</small>
+                                </div>
+                                <div class="stat-icon stat-appreciation">
+                                    <i class="fas fa-star text-white"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Notes Details -->
+            <!-- Sélecteur de Semestre -->
+            <div class="row px-3 mb-4">
+                <div class="col-12">
+                    <div class="semester-tabs text-center">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-calendar-alt me-2"></i>Sélectionnez le Semestre
+                        </h5>
+                        <div class="d-flex justify-content-center flex-wrap">
+                            <a href="?semestre=Semestre 1" class="semester-btn <?= $semestre === 'Semestre 1' ? 'active' : '' ?>">
+                                <i class="fas fa-1 me-2"></i>Semestre 1
+                            </a>
+                            <a href="?semestre=Semestre 2" class="semester-btn <?= $semestre === 'Semestre 2' ? 'active' : '' ?>">
+                                <i class="fas fa-2 me-2"></i>Semestre 2
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informations Étudiant -->
+            <div class="row px-3 mb-4">
+                <div class="col-12">
+                    <div class="card stat-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-graduate me-2"></i> Mes Informations
+                            </h5>
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-id-card me-1"></i><?= htmlspecialchars($_SESSION["matricule"] ?? 'N/A') ?>
+                                </span>
+                                <span class="badge bg-success">
+                                    <i class="fas fa-calendar me-1"></i><?= $semestre ?>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Détail des Notes -->
             <div class="row px-3">
                 <div class="col-12">
                     <div class="card stat-card">
                         <div class="card-header bg-primary text-white py-3">
                             <div class="d-flex justify-content-between align-items-center">
-                                <h4 class="mb-0"><i class="fas fa-book-open me-2"></i>Détail des Notes</h4>
-                                <span class="badge bg-light text-dark fs-6">ETU2023-125</span>
+                                <h4 class="mb-0">
+                                    <i class="fas fa-book-open me-2"></i>Détail des Notes - <?= $semestre ?>
+                                </h4>
+                                <span class="badge bg-light text-dark fs-6">
+                                    <?= count($notes) ?> matière(s)
+                                </span>
                             </div>
                         </div>
                         <div class="card-body">
-                            <ul class="nav nav-tabs" id="notesTab" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="semestre1-tab" data-bs-toggle="tab" data-bs-target="#semestre1" type="button">
-                                        Semestre 1
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="semestre2-tab" data-bs-toggle="tab" data-bs-target="#semestre2" type="button">
-                                        Semestre 2
-                                    </button>
-                                </li>
-                            </ul>
-                            
-                            <div class="tab-content p-3 border border-top-0 rounded-bottom" id="notesTabContent">
-                                <div class="tab-pane fade show active" id="semestre1">
-                                    <div class="table-responsive">
-                                        <table class="table table-hover notes-table">
-                                            <thead>
+                            <?php if (!empty($notes)): ?>
+                                <div class="table-responsive">
+                                    <table class="table table-hover notes-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Matière</th>
+                                                <th>Interro 1</th>
+                                                <th>Interro 2</th>
+                                                <th>Interro 3</th>
+                                                <th>Devoir 1</th>
+                                                <th>Devoir 2</th>
+                                                <th>Moyenne</th>
+                                                <th>Crédits</th>
+                                                <th>Statut</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($notes as $note): ?>
+                                                <?php 
+                                                    // Vérifier que toutes les notes sont supérieures à 0
+                                                    $allGradesFilled = 
+                                                        $note['interrogation1'] > 0 &&
+                                                        $note['interrogation2'] > 0 &&
+                                                        $note['interrogation3'] > 0 &&
+                                                        $note['devoir1'] > 0 &&
+                                                        $note['devoir2'] > 0;
+
+                                                    if ($allGradesFilled) {
+                                                        // Calcul de la moyenne
+                                                        $moyenneAssignments = ($note['interrogation1'] + $note['interrogation2'] + $note['interrogation3']) / 3;
+                                                        $sumExams = $note['devoir1'] + $note['devoir2'];
+                                                        $moyenneTotale = ($moyenneAssignments + $sumExams) / 3;
+                                                        $moyenneTotale = round($moyenneTotale, 2);
+
+                                                        $statut = $moyenneTotale >= 10 ? 'success' : 'danger';
+                                                        $texte_statut = $moyenneTotale >= 10 ? 'Validé' : 'Non validé';
+                                                        $displayMoyenne = $moyenneTotale;
+                                                    } else {
+                                                        $statut = 'danger';
+                                                        $texte_statut = 'Toutes les notes ne sont pas renseignées';
+                                                        $displayMoyenne = $texte_statut;
+                                                    }
+                                                ?>
                                                 <tr>
-                                                    <th>Matière</th>
-                                                    <th>Interro 1</th>
-                                                    <th>Interro 2</th>
-                                                    <th>Interro 3</th>
-                                                    <th>Devoir 1</th>
-                                                    <th>Devoir 2</th>
-                                                    <th>Moyenne</th>
-                                                    <th>Crédits</th>
+                                                    <td><strong class="text-primary"><?= htmlspecialchars($note['matiere']) ?></strong></td>
+                                                    <td><span class="<?= $note['interrogation1'] >= 10 ? 'text-success' : 'text-danger' ?>"><?= htmlspecialchars($note['interrogation1'] ?? '-') ?></span></td>
+                                                    <td><span class="<?= $note['interrogation2'] >= 10 ? 'text-success' : 'text-danger' ?>"><?= htmlspecialchars($note['interrogation2'] ?? '-') ?></span></td>
+                                                    <td><span class="<?= $note['interrogation3'] >= 10 ? 'text-success' : 'text-danger' ?>"><?= htmlspecialchars($note['interrogation3'] ?? '-') ?></span></td>
+                                                    <td><span class="<?= $note['devoir1'] >= 10 ? 'text-success' : 'text-danger' ?>"><?= htmlspecialchars($note['devoir1'] ?? '-') ?></span></td>
+                                                    <td><span class="<?= $note['devoir2'] >= 10 ? 'text-success' : 'text-danger' ?>"><?= htmlspecialchars($note['devoir2'] ?? '-') ?></span></td>
+                                                    
+                                                    <td class="fw-bold text-<?= $statut ?>"><?= htmlspecialchars($displayMoyenne) ?></td>
+                                                    <td><span class="badge bg-info"><?= htmlspecialchars($note['coefficient']) ?></span></td>
+                                                    <td>
+                                                        <span class="badge bg-<?= $statut ?>">
+                                                            <i class="fas fa-<?= $statut === 'success' ? 'check' : 'times' ?> me-1"></i>
+                                                            <?= $texte_statut ?>
+                                                        </span>
+                                                    </td>
                                                 </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td><strong>Programmation</strong></td>
-                                                    <td>14.00</td>
-                                                    <td>12.00</td>
-                                                    <td>15.00</td>
-                                                    <td>16.00</td>
-                                                    <td>18.00</td>
-                                                    <td class="fw-bold text-primary">15.20</td>
-                                                    <td><span class="badge bg-success">5</span></td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Base de données</strong></td>
-                                                    <td>13.50</td>
-                                                    <td>14.00</td>
-                                                    <td>12.50</td>
-                                                    <td>15.00</td>
-                                                    <td>16.50</td>
-                                                    <td class="fw-bold text-primary">14.30</td>
-                                                    <td><span class="badge bg-success">4</span></td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Réseaux</strong></td>
-                                                    <td>11.00</td>
-                                                    <td>13.50</td>
-                                                    <td>14.00</td>
-                                                    <td>12.00</td>
-                                                    <td>15.00</td>
-                                                    <td class="fw-bold text-primary">13.10</td>
-                                                    <td><span class="badge bg-success">3</span></td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+
+                                </div>
+                            <?php else: ?>
+                                <div class="text-center py-5">
+                                    <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">Aucune note disponible</h5>
+                                    <p class="text-muted">Les notes pour <?= $semestre ?> ne sont pas encore publiées.</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Légende et Informations -->
+            <div class="row px-3 mt-4">
+                <div class="col-12">
+                    <div class="card stat-card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-info-circle me-2"></i>Légende des Notes
+                                    </h6>
+                                    <div class="d-flex flex-wrap gap-3">
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-success me-2">≥ 10</span>
+                                            <small>Note validante</small>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-danger me-2">< 10</span>
+                                            <small>Note non validante</small>
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-info me-2">Crédits</span>
+                                            <small>Coefficient de la matière</small>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="tab-pane fade" id="semestre2">
-                                    <div class="text-center py-5">
-                                        <i class="fas fa-clock fa-3x text-muted mb-3"></i>
-                                        <h5 class="text-muted">Les notes du semestre 2 seront disponibles après délibération</h5>
-                                        <p class="text-muted">Merci de patienter</p>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary mb-3">
+                                        <i class="fas fa-chart-bar me-2"></i>Résumé du Semestre
+                                    </h6>
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <h4 class="text-primary mb-0"><?= $total_matieres ?></h4>
+                                            <small class="text-muted">Matières</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <h4 class="text-success mb-0">
+                                                <?= count(array_filter($notes, function($n) { return $n['moyenne'] >= 10; })) ?>
+                                            </h4>
+                                            <small class="text-muted">Validées</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <h4 class="text-info mb-0"><?= $total_credits ?></h4>
+                                            <small class="text-muted">Crédits</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -1,8 +1,10 @@
 <?php
 session_start();
 
-include("../init.php");
-
+if (!isset($_SESSION["Nom"])){
+    header("Location:connexion-admin.php");
+    exit();
+}
 
 if (isset($_POST["deconnexion"])){
     $_SESSION = array();
@@ -11,108 +13,133 @@ if (isset($_POST["deconnexion"])){
     exit();
 }
 
-// Requête pour compter uniquement les étudiants
-$sql1=$connecter->prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'etudiant' ");
-$sql1->execute();
-$resultat1=$sql1->fetch();
+include("../connexion-bases.php");
 
 
-if ($resultat1) {
-    $row1 = $resultat1;
-    $nombres_etudiant=$row1['total'];
-   
-} else {
-    $nombres_etudiant= 0; // Valeur par défaut si la requête échoue
+
+
+// Filtre dynamique
+$filter_department = $_GET['department'] ?? null;
+$filter_level = $_GET['level'] ?? null;
+
+$sql = "SELECT 
+    a.attendance_id, a.status, a.date_attendance,
+    s.student_id, s.matricule, s.first_name, s.last_name,
+    sc.schedule_id, sc.day, sc.start_time, sc.end_time, sc.date_start, sc.date_end,
+    sub.subject_id, sub.subject_name,
+    lvl.level_id, lvl.level_name,
+    d.department_id, d.department_name,
+    c.classroom_id, c.classroom_name
+FROM attendance_students a
+JOIN students s ON a.student_id = s.student_id
+JOIN schedules sc ON a.schedule_id = sc.schedule_id
+JOIN subjects sub ON sc.subject_id = sub.subject_id
+JOIN levels lvl ON sub.level_id = lvl.level_id
+JOIN departments d ON lvl.department_id = d.department_id
+JOIN classrooms c ON sc.classroom_id = c.classroom_id
+WHERE 1";
+
+// Ajouter les filtres
+if ($filter_department) {
+    $sql .= " AND d.department_id = :department_id";
 }
-// fin requête pour compter uniquement les étudiants
-
-// Requête pour compter uniquement les enseignants
-$sql2=$connecter->prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'enseignant'");
-$sql2->execute();
-$resultat2=$sql2->fetch();
-
-
-if ($resultat2) {
-    $row2 = $resultat2;
-    $nombres_enseignant=$row2['total'];
-   
-} else {
-    $nombres_enseignant= 0; // Valeur par défaut si la requête échoue
+if ($filter_level) {
+    $sql .= " AND lvl.level_id = :level_id";
 }
-// fin requête pour compter uniquement les enseignants  
 
-// Requête pour compter toutes les users
-$sql3=$connecter->prepare("SELECT COUNT(*) AS total FROM users ");
-$sql3->execute();
-$resultat3=$sql3->fetch();
+$sql .= " ORDER BY a.attendance_id DESC";
 
+$stmt = $connecter->prepare($sql);
 
-if ($resultat3) {
-    $row3 = $resultat3;
-    $nombres_users=$row3['total'];
-   
-} else {
-    $nombres_users= 0; // Valeur par défaut si la requête échoue
-}
-// fin requête pour compter toutes les users 
+// Bind des filtres
+if ($filter_department) $stmt->bindParam(':department_id', $filter_department);
+if ($filter_level) $stmt->bindParam(':level_id', $filter_level);
 
-//requette pour compter les salles
-    $totalSalles=$connecter->prepare("SELECT COUNT(*) AS total FROM classrooms");
-    $totalSalles->execute();
-    $resultatSalles=$totalSalles->fetch();
-    if ($resultatSalles) {
-        $rowSalles = $resultatSalles;
-        $nombres_salles=$rowSalles['total'];
-       
-    } else {
-        $nombres_salles= 0; // Valeur par défaut si la requête échoue
-    }
-
-// requette pour compter les etudiantes filles et garçons
-$totalEtudiantes=$connecter->prepare("SELECT COUNT(*) AS total_females FROM students WHERE  gender = 'F'");
-$totalEtudiantes->execute();
-$resultatEtudiantes=$totalEtudiantes->fetch();
-if ($resultatEtudiantes) {
-    $rowEtudiantes = $resultatEtudiantes;
-    $nombres_females=$rowEtudiantes['total_females']; 
-     } else {
-          $nombres_females= 0; // Valeur par défaut si la requête échoue
-    }  
+$stmt->execute();
+$datas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
-    //requette pour compter les etudiants garçons
-    $totalEtudiants=$connecter->prepare("SELECT COUNT(*) AS total_males FROM students WHERE  gender = 'M'");
-    $totalEtudiants->execute(); 
-    $resultatEtudiants=$totalEtudiants->fetch();
-    if ($resultatEtudiants) {
-        $rowEtudiants = $resultatEtudiants;
-        $nombres_males=$rowEtudiants['total_males']; 
-         } else {   
-              $nombres_males= 0; // Valeur par défaut si la requête échoue
-        }
+// affichage des donnes
+// $sql = "SELECT 
+//     -- Attendance
+//     a.attendance_id,
+//     a.status,
+//     a.date_attendance,
 
-        //requette pour compter compter nombres de departments
-    $totalDepartments=$connecter->prepare("SELECT COUNT(*) AS total FROM departments");
-    $totalDepartments->execute();
-    $resultatDepartments=$totalDepartments->fetch();
-    if ($resultatDepartments) {
-        $rowDepartments = $resultatDepartments;
-        $nombres_departments=$rowDepartments['total'];
-       
-    } else {
-        $nombres_departments= 0; // Valeur par défaut si la requête échoue
-    }
-       
-//requette pour compter compter nombres de subjects
-$totalSubjects=$connecter->prepare("SELECT COUNT(*) AS total FROM subjects");
-$totalSubjects->execute();
-$resultatSubjects=$totalSubjects->fetch();
-if ($resultatSubjects) {
-    $rowSubjects = $resultatSubjects;
-    $nombres_subjects=$rowSubjects['total'];
-} else {
-    $nombres_subjects= 0; // Valeur par défaut si la requête échoue
-}
+//     -- Student
+//     s.student_id,
+//     s.matricule,
+//     s.first_name,
+//     s.last_name,
+
+//     -- Schedule
+//     sc.schedule_id,
+//     sc.day,
+//     sc.start_time,
+//     sc.end_time,
+//     sc.date_start,
+//     sc.date_end,
+
+//     -- Subject
+//     sub.subject_id,
+//     sub.subject_name,
+
+//     -- Level
+//     lvl.level_id,
+//     lvl.level_name,
+
+//     -- Department
+//     d.department_id,
+//     d.department_name,
+
+//     -- Classroom
+//     c.classroom_id,
+//     c.classroom_name
+
+// FROM attendance_students a
+
+// JOIN students s 
+//     ON a.student_id = s.student_id
+
+// JOIN schedules sc 
+//     ON a.schedule_id = sc.schedule_id
+
+// JOIN subjects sub 
+//     ON sc.subject_id = sub.subject_id
+
+// JOIN levels lvl
+//     ON sub.level_id = lvl.level_id
+
+// JOIN departments d
+//     ON lvl.department_id = d.department_id
+
+// JOIN classrooms c
+//     ON sc.classroom_id = c.classroom_id
+
+// ORDER BY a.attendance_id DESC;
+// ";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ?>
@@ -125,7 +152,7 @@ if ($resultatSubjects) {
     <meta name="description" content="">
     <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
     <meta name="generator" content="Hugo 0.84.0">
-    <title>Tableau de Bord Administrateur - Class Connect</title>
+    <title>Suivis des Emargements - Class Connect</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
@@ -170,7 +197,7 @@ if ($resultatSubjects) {
         }
         
         .main-header {
-            background-color:white;
+            background-color: white;
             box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
             flex-shrink: 0;
         }
@@ -194,7 +221,7 @@ if ($resultatSubjects) {
         }
         
         .sidebar .nav-link {
-            color:rgb(255, 193, 7) !important;
+            color: rgb(255, 193, 7) !important;
             padding: 10px 20px;
             margin: 4px 0;
             border-radius: 8px;
@@ -209,7 +236,7 @@ if ($resultatSubjects) {
         
         .sidebar .nav-link.active {
             background: var(--light);
-            color:rgb(255, 193, 7)  !important;
+            color: rgb(255, 193, 7) !important;
             box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
         }
         
@@ -330,6 +357,65 @@ if ($resultatSubjects) {
             transform: rotate(45deg);
             box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4);
         }
+
+        /* Emargement Specific Styles */
+        .emargement-card {
+            background: white;
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .emargement-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+        
+        .emargement-card .card-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 20px;
+            font-weight: 600;
+        }
+        
+        .student-item {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+        
+        .student-item:hover {
+            background-color: #f8f9fa;
+            transform: translateX(5px);
+        }
+        
+        .student-item:last-child {
+            border-bottom: none;
+        }
+        
+        .badge-filiere {
+            font-size: 0.7rem;
+            margin-left: 8px;
+        }
+        
+        .presence-cell {
+            width: 150px;
+        }
+        
+        .new-row {
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        .btn-add {
+            transition: all 0.3s ease;
+        }
+        
+        .btn-add:hover {
+            transform: scale(1.05);
+        }
         
         /* Responsive Design */
         @media (max-width: 768px) {
@@ -352,12 +438,16 @@ if ($resultatSubjects) {
                 margin-left: 0 !important;
             }
             
-            .stat-card {
+            .stat-card, .emargement-card {
                 margin-bottom: 1rem;
             }
             
             .main-container {
                 flex-direction: column;
+            }
+            
+            .presence-cell {
+                width: 120px;
             }
         }
         
@@ -373,7 +463,7 @@ if ($resultatSubjects) {
             }
         }
         
-        .stat-card {
+        .stat-card, .emargement-card {
             animation: fadeInUp 0.6s ease-out;
         }
         
@@ -393,7 +483,7 @@ if ($resultatSubjects) {
         
         /* Custom scrollbar for main content */
         .content-wrapper::-webkit-scrollbar {
-            width: 15px !important;
+            width: 8px;
         }
         
         .content-wrapper::-webkit-scrollbar-track {
@@ -428,9 +518,7 @@ if ($resultatSubjects) {
             <i class="fas fa-graduation-cap me-2"></i>Class <span class="text-warning" style="font-family: cubic;">Connect</span>
         </a>
         
-        
-
-        <div class="d-flex align-items-center ">
+        <div class="d-flex align-items-center">
             <form action="" method="post" class="">
                 <button type="submit" name="deconnexion" class="btn btn-outline-dark btn-sm">
                     <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
@@ -445,11 +533,11 @@ if ($resultatSubjects) {
 
 <div class="main-container">
     <!-- Sidebar -->
-    <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar w-25 collapse ">
+    <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar w-25 collapse">
         <div class="pt-3">
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="dashbord-admin.php">
+                    <a class="nav-link" aria-current="page" href="dashbord-admin.php">
                         <i class="fas fa-chart-line"></i>
                         Tableau de bord
                     </a>
@@ -497,7 +585,7 @@ if ($resultatSubjects) {
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="suivis-des-emargements-admin.php">
+                    <a class="nav-link active" href="suivis-des-emargements-admin.php">
                         <i class="fas fa-file-signature"></i>
                         Suivi des émargements
                     </a>
@@ -525,8 +613,8 @@ if ($resultatSubjects) {
             <!-- Header Section -->
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-4 pb-3 mb-4 page-header px-4 mt-4">
                 <div>
-                    <h1 class="h2 mb-1 fw-bold text-primary">Tableau de Bord</h1>
-                    <p class="text-muted mb-0">Aperçu global du système Class Connect</p>
+                    <h1 class="h2 mb-1 fw-bold text-primary">Suivis des Emargements</h1>
+                    <p class="text-muted mb-0">Gestion des présences des étudiants</p>
                 </div>
                 <div class="d-flex align-items-center gap-3">
                     <div class="date-display">
@@ -553,155 +641,101 @@ if ($resultatSubjects) {
                 </div>
             </div>
 
-            <!-- Stats Cards - First Row -->
-            <div class="row g-4 mb-4 px-3">
-                <!-- Salles Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Salles</h6>
-                                    <h2 class="fw-bold text-dark"><?= $nombres_salles ?></h2>
-                                    <small class="text-success">Disponibles</small>
-                                </div>
-                                <div class="stat-icon stat-classrooms">
-                                    <i class="fas fa-school text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Étudiants Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Étudiants</h6>
-                                    <h2 class="fw-bold text-dark"><?=$nombres_etudiant?></h2>
-                                    <small class="text-success">Actifs</small>
-                                </div>
-                                <div class="stat-icon stat-students">
-                                    <i class="fas fa-user-graduate text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Enseignants Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Enseignants</h6>
-                                    <h2 class="fw-bold text-dark"><?=$nombres_enseignant?></h2>
-                                    <small class="text-success">En activité</small>
-                                </div>
-                                <div class="stat-icon stat-teachers">
-                                    <i class="fas fa-chalkboard-teacher text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Utilisateurs Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Utilisateurs</h6>
-                                    <h2 class="fw-bold text-dark"><?=$nombres_users?></h2>
-                                    <small class="text-success">Total plateforme</small>
-                                </div>
-                                <div class="stat-icon stat-users">
-                                    <i class="fas fa-users text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+          
 
-            <!-- Stats Cards - Second Row -->
-            <div class="row g-4 px-3">
-                <!-- Filles Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Étudiantes</h6>
-                                    <h2 class="fw-bold text-dark"><?=  $nombres_females ?></h2>
-                                  
-                                </div>
-                                <div class="stat-icon stat-females">
-                                    <i class="fas fa-female text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Garçons Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Étudiants</h6>
-                                    <h2 class="fw-bold text-dark"><?= $nombres_males ?></h2>
-                                    
-                                </div>
-                                <div class="stat-icon stat-males">
-                                    <i class="fas fa-male text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Filières Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Filières</h6>
-                                    <h2 class="fw-bold text-dark"><?=  $nombres_departments ?></h2>
-                                    <small class="text-success">Actives</small>
-                                </div>
-                                <div class="stat-icon stat-filieres">
-                                    <i class="fas fa-folder text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Cours Card -->
-                <div class="col-xl-3 col-md-6">
-                    <div class="card stat-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="text-muted mb-2">Matières</h6>
-                                    <h2 class="fw-bold text-dark"><?= $nombres_subjects  ?></h2>
-                                    <small class="text-success">En progression</small>
-                                </div>
-                                <div class="stat-icon stat-courses">
-                                    <i class="fas fa-book-open text-white"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
+            <!--Affichage des infos dans un tableau   --->
+
+            <table class="table table-striped table-bordered">
+                <?php
+// récupérer departments + levels
+$req = $connecter->query("
+    SELECT d.department_id, d.department_name, 
+           lvl.level_id, lvl.level_name
+    FROM departments d
+    JOIN levels lvl ON lvl.department_id = d.department_id
+");
+$groups = [];
+while ($r = $req->fetch(PDO::FETCH_ASSOC)) {
+    $groups[$r['department_name']][] = $r;
+}
+?>
+
+<div class="dropdown mb-3">
+    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        Filtrer par Département / Niveau
+    </button>
+
+    <ul class="dropdown-menu">
+        <?php foreach ($groups as $department => $levels): ?>
+            <li class="dropdown-header fw-bold"><?= $department ?></li>
+
+            <?php foreach ($levels as $lvl): ?>
+                <li>
+                    <a class="dropdown-item" href="suivis-des-emargements-admin.php?department=<?= $lvl['department_id'] ?>&level=<?= $lvl['level_id'] ?>">
+                        <?= $lvl['level_name'] ?>
+                    </a>
+                </li>
+            <?php endforeach; ?>
+
+            <li><hr class="dropdown-divider"></li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+
+    <thead>
+        <tr>
+            <th>Étudiant</th>
+            <th>Matricule</th>
+            <th>Filière/Niveau</th>
+            <th>Matière</th>
+            <th>Date</th>
+            <th>Début</th>
+            <th>Fin</th>
+            <th>Salle</th>
+            <th>Statut</th>
+           
+        </tr>
+    </thead>
+<tbody>
+<?php if (empty($datas)): ?>
+    <tr>
+        <td colspan="9" class="text-center text-danger fw-bold">
+            Aucun(e) étudiant(e) n'est inscrit(e)
+        </td>
+    </tr>
+<?php else: ?>
+    <?php foreach($datas as $row): ?>
+        <tr>
+            <td><?= $row['first_name'] . ' ' . $row['last_name'] ?></td>
+            <td><?= $row['matricule'] ?></td>
+            <td><?= $row['department_name'] . " / " . $row['level_name'] ?></td>
+            <td><?= $row['subject_name'] ?></td>
+            <td><?= $row['day'] ?></td>
+            <td><?= $row['start_time'] ?></td>
+            <td><?= $row['end_time'] ?></td>
+            <td><?= htmlspecialchars($row['classroom_name']) ?></td>
+
+            <td>
+                <?php
+                    $status = $row['status'];
+                    $badgeClass = match ($status) {
+                        'present' => 'badge bg-success',
+                        'absent' => 'badge bg-danger',
+                        'en retard', 'retard' => 'badge bg-warning text-dark',
+                        default => 'badge bg-secondary',
+                    };
+                ?>
+                <span class="<?= $badgeClass ?>"><?= ucfirst($status) ?></span>
+            </td>
+        </tr>
+    <?php endforeach; ?>
+<?php endif; ?>
+</tbody>
+
+</table>
+
+       
         </main>
 
         <!-- Footer -->
@@ -723,7 +757,10 @@ if ($resultatSubjects) {
         </footer>
     </div>
 </div>
-<script src="../bootstrap-5.3.7\bootstrap-5.3.7\dist\js\bootstrap.bundle.min.js"></script>
+
+
+
+
 <script>
     function afficherDateHeure() {
         const maintenant = new Date();
@@ -747,24 +784,14 @@ if ($resultatSubjects) {
 
     // Animation pour les cartes au chargement
     document.addEventListener('DOMContentLoaded', function() {
-        const cards = document.querySelectorAll('.stat-card');
+        const cards = document.querySelectorAll('.emargement-card');
         cards.forEach((card, index) => {
             card.style.animationDelay = `${index * 0.1}s`;
         });
-        
-        // Gestion de la hauteur du sidebar sur mobile
-        function handleSidebarHeight() {
-            const sidebar = document.getElementById('sidebarMenu');
-            if (window.innerWidth >= 768) {
-                sidebar.style.height = 'calc(100vh - 73px)';
-            } else {
-                sidebar.style.height = '100vh';
-            }
-        }
-        
-        window.addEventListener('resize', handleSidebarHeight);
-        handleSidebarHeight();
     });
 </script>
+
+<script src="../bootstrap-5.3.7\bootstrap-5.3.7\dist\js\bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

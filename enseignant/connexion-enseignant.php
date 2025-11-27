@@ -3,19 +3,13 @@ session_start();
 $msg1 = "";
 $msg2 = "";
 
+include("../connexion-bases.php");
+
 if (isset($_POST["connexion"])) {
     if (!empty($_POST['email']) && !empty($_POST['password'])) {
-        // Début connexion à la base de données
-        $serveur = "localhost";
-        $name = "root";
-        $password = "";
+        
 
-        try {
-            $connecter = new PDO("mysql:host=$serveur;dbname=gestion_des_etudiants;charset=utf8", $name, $password);
-            $connecter->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        } catch (PDOException $e) {
-            die("Erreur de connexion : " . $e->getMessage());
-        }
+      
 
         // Récupération et sécurisation des données POST
         $email = htmlspecialchars(trim($_POST["email"]));
@@ -30,28 +24,44 @@ if (isset($_POST["connexion"])) {
         if ($resultat_enseignant) {
             // Vérification du mot de passe et du rôle
             if (password_verify($password_input, $resultat_enseignant["password"]) && $resultat_enseignant["role"] == "enseignant") {
-                // Initialisation de la session
-                $_SESSION["user_id"] = $resultat_enseignant["teacher_id"];
-                $_SESSION["email"] = $resultat_enseignant["email"];
-                $_SESSION["role"] = $resultat_enseignant["role"];
-                $_SESSION["first_name"] = $resultat_enseignant["first_name"];
-                $_SESSION["last_name"] = $resultat_enseignant["last_name"];
-                $_SESSION["Nom"] = $resultat_enseignant["first_name"] . " " . $resultat_enseignant["last_name"];
-                $_SESSION["login_time"] = time();
+                
+                // Vérification de l'affectation de l'enseignant
+                $sql = "SELECT 1 FROM teachers_affectation WHERE teacher_id = :teacher_id LIMIT 1";
+                $affectation = $connecter->prepare($sql);
+                $affectation->bindParam(':teacher_id', $resultat_enseignant["teacher_id"]);
+                $affectation->execute();
+                $rst = $affectation->fetch();
 
-                header("Location: enseignant.php");
-                exit();  
+                if (!$rst) {
+                    // Si l'enseignant n'a pas d'affectation
+                    $msg2 = "Votre inscription est incomplète. Veuillez contacter l'administration.";
+                    header("Location: config-teacher.php");
+                    exit();
+                } else {
+                    // Si tout est bon
+                    $_SESSION["user_id_teacher"] = $resultat_enseignant["teacher_id"];
+                    $_SESSION["email"] = $resultat_enseignant["email"];
+                    $_SESSION["role"] = $resultat_enseignant["role"];
+                    $_SESSION["first_name"] = $resultat_enseignant["first_name"];
+                    $_SESSION["last_name"] = $resultat_enseignant["last_name"];
+                    $_SESSION["Nom"] = $resultat_enseignant["first_name"] . " " . $resultat_enseignant["last_name"];
+                    $_SESSION["login_time"] = time();
+
+                    header("Location: enseignant.php");
+                    exit();
+                }
             } else {
                 $msg2 = "Email ou mot de passe incorrect.";
             }
         } else {
-            $msg2 = "Email ou mot de passe incorrect.";
+            $msg2 = "Aucun utilisateur trouvé avec cet email.";
         }
     } else {
         $msg1 = "Veuillez remplir tous les champs.";
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
