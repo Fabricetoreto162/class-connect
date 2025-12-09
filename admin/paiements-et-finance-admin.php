@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-if (!isset($_SESSION["Nom"])){
+if (!isset($_SESSION["admin-nom"])){
     header("Location:connexion-admin.php");
     exit();
 }
@@ -12,6 +12,110 @@ if (isset($_POST["deconnexion"])){
     header("Location:connexion-admin.php");
     exit();
 }
+
+
+include("../connexion-bases.php");
+
+
+
+
+
+$sql="SELECT 
+    s.student_id,
+    s.matricule,
+    s.first_name,
+    s.last_name,
+    l.level_name,
+    d.department_name AS dep_name
+FROM students s
+INNER JOIN levels l ON s.level_id = l.level_id
+INNER JOIN departments d ON l.department_id = d.department_id
+ORDER BY s.student_id DESC; ";
+
+$recuperer = $connecter->prepare($sql);
+$recuperer->execute();
+$students = $recuperer->fetchAll(PDO::FETCH_ASSOC);
+
+
+
+
+if (isset($_POST['submit_payment'])) {
+   if (!empty($_POST['student_id']) && !empty($_POST['montant_paiement'])) {
+    // on recupere les valeurs des champs
+    $student_id = $_POST['student_id'];
+    $montant_paiement = $_POST['montant_paiement'];
+    $type_paiement =$_POST['type_paiement'];
+    $methode_paiement = $_POST['methode_paiement'];
+    //insertion dans la base de donnee
+    $insert_payment_sql = "INSERT INTO payments (student_id, amount,types_paiement , method, payment_date) 
+                           VALUES (:student_id, :amount,:types_paiement ,:method, NOW())";
+
+    $insert_payment_stmt = $connecter->prepare($insert_payment_sql);
+    $insert_payment_stmt->bindParam(':student_id', $student_id);
+    $insert_payment_stmt->bindParam(':amount', $montant_paiement);
+    $insert_payment_stmt->bindParam(':types_paiement', $type_paiement);
+    $insert_payment_stmt->bindParam(':method', $methode_paiement);
+    $insert_payment_stmt->execute();
+    // Redirection après l'insertion
+    header("Location: paiements-et-finance-admin.php");
+    exit();
+
+}
+    
+    
+};
+
+
+
+
+
+$departments = $connecter->query("
+    SELECT department_id, department_name, amount AS total_due
+    FROM departments
+")->fetchAll(PDO::FETCH_ASSOC);
+
+// Fonction pour récupérer les étudiants d'un département
+function getStudentsByDepartment($connecter, $dep_id) {
+    $sql = $connecter->prepare("
+        SELECT 
+            s.student_id,
+            s.matricule,
+            s.first_name,
+            s.last_name,
+            d.department_name,
+            d.amount AS total_due,
+
+            COALESCE(SUM(p.amount), 0) AS total_paid,
+            d.amount - COALESCE(SUM(p.amount), 0) AS reste,
+
+            CASE
+                WHEN COALESCE(SUM(p.amount), 0) >= d.amount THEN 'Soldé'
+                WHEN COALESCE(SUM(p.amount), 0) = 0 THEN 'Impayé'
+                ELSE 'Partiel'
+            END AS statut,
+
+            MAX(p.payment_date) AS dernier_paiement
+
+        FROM students s
+        JOIN levels l ON s.level_id = l.level_id
+        JOIN departments d ON l.department_id = d.department_id
+        LEFT JOIN payments p ON s.student_id = p.student_id
+        WHERE d.department_id = ?
+        GROUP BY s.student_id
+        ORDER BY s.last_name ASC
+    ");
+
+    $sql->execute([$dep_id]);
+    return $sql->fetchAll(PDO::FETCH_ASSOC);
+}
+
+
+
+
+
+
+
+
 ?>
 
 <!doctype html>
@@ -509,6 +613,12 @@ if (isset($_POST["deconnexion"])){
                         Paiements et finances
                     </a>
                 </li>
+                 <li class="nav-item">
+                    <a class="nav-link" href="cahier-de-texte.php">
+                        <i class="fas fa-file-lines"></i>
+                         Gestions des cahier de texte
+                    </a>
+                </li>
             </ul>
         </div>
     </nav>
@@ -530,7 +640,7 @@ if (isset($_POST["deconnexion"])){
                     </div>
                     <div class="dropdown">
                         <button class="btn user-dropdown dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-2"></i><?=$_SESSION["Nom"];?>
+                            <i class="fas fa-user-circle me-2"></i><?=$_SESSION["admin-nom"];?>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profil</a></li>
@@ -557,170 +667,138 @@ if (isset($_POST["deconnexion"])){
                     </div>
                 </div>
 
-                <div class="row">
-                    <!-- Filière Informatique -->
-                    <div class="col-md-12">
-                        <div class="card finance-card">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="card-title mb-0 text-white">
-                                        <i class="fas fa-laptop-code me-2"></i>Filière Informatique
-                                    </h5>
-                                    <div>
-                                        <span class="badge bg-success badge-status">15 soldés</span>
-                                        <span class="badge bg-warning text-dark badge-status mx-2">5 partiels</span>
-                                        <span class="badge bg-danger badge-status">3 impayés</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Étudiant</th>
-                                                <th>Total dû</th>
-                                                <th>Payé</th>
-                                                <th>Reste</th>
-                                                <th>Statut</th>
-                                                <th>Dernier Paiement</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <!-- Étudiant soldé -->
-                                            <tr>
-                                                <td>
-                                                    <div class="fw-semibold">Jean Dupont</div>
-                                                    <small class="text-muted">ETU001</small>
-                                                </td>
-                                                <td>200 000 FCFA</td>
-                                                <td>200 000 FCFA</td>
-                                                <td class="solde solde-positive">0 FCFA</td>
-                                                <td>
-                                                    <span class="badge bg-success badge-status">Soldé</span>
-                                                </td>
-                                                <td>
-                                                    <div>15/09/2023</div>
-                                                    <small class="payment-date">(Il y a 2 mois)</small>
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-primary btn-action" onclick="showPaymentDetails('ETU001', 'Jean Dupont')">
-                                                        <i class="fas fa-receipt"></i> Reçu
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            
-                                            <!-- Étudiant partiel -->
-                                            <tr>
-                                                <td>
-                                                    <div class="fw-semibold">Sophie Martin</div>
-                                                    <small class="text-muted">ETU002</small>
-                                                </td>
-                                                <td>200 000 FCFA</td>
-                                                <td>120 000 FCFA</td>
-                                                <td class="solde solde-negative">80 000 FCFA</td>
-                                                <td>
-                                                    <span class="badge bg-warning text-dark badge-status">Partiel</span>
-                                                </td>
-                                                <td>
-                                                    <div>05/10/2023</div>
-                                                    <small class="payment-date">(Il y a 1 mois)</small>
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-success btn-action" onclick="showPaymentDetails('ETU002', 'Sophie Martin')">
-                                                        <i class="fas fa-plus"></i> Payer
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            
-                                            <!-- Étudiant impayé -->
-                                            <tr>
-                                                <td>
-                                                    <div class="fw-semibold">Pierre Bernard</div>
-                                                    <small class="text-muted">ETU003</small>
-                                                </td>
-                                                <td>200 000 FCFA</td>
-                                                <td>0 FCFA</td>
-                                                <td class="solde solde-negative">200 000 FCFA</td>
-                                                <td>
-                                                    <span class="badge bg-danger badge-status">Impayé</span>
-                                                </td>
-                                                <td>
-                                                    <div>-</div>
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-danger btn-action" onclick="showPaymentDetails('ETU003', 'Pierre Bernard')">
-                                                        <i class="fas fa-bell"></i> Rappeler
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+               <button class="btn btn-success btn-lg w-100 mb-3" onclick="ouvrirModalPaiement()">
+                        💵 Paiement en Espèces
+                    </button>
 
-                    <!-- Filière Biologie -->
-                    <div class="col-md-12 mt-4">
-                        <div class="card finance-card">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="card-title mb-0 text-white">
-                                        <i class="fas fa-dna me-2"></i>Filière Biologie
-                                    </h5>
-                                    <div>
-                                        <span class="badge bg-success badge-status">8 soldés</span>
-                                        <span class="badge bg-warning text-dark badge-status mx-2">2 partiels</span>
-                                        <span class="badge bg-danger badge-status">1 impayé</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Étudiant</th>
-                                                <th>Total dû</th>
-                                                <th>Payé</th>
-                                                <th>Reste</th>
-                                                <th>Statut</th>
-                                                <th>Dernier Paiement</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <!-- Exemple étudiant biologie -->
-                                            <tr>
-                                                <td>
-                                                    <div class="fw-semibold">Marie Leroy</div>
-                                                    <small class="text-muted">ETU004</small>
-                                                </td>
-                                                <td>180 000 FCFA</td>
-                                                <td>180 000 FCFA</td>
-                                                <td class="solde solde-positive">0 FCFA</td>
-                                                <td>
-                                                    <span class="badge bg-success badge-status">Soldé</span>
-                                                </td>
-                                                <td>
-                                                    <div>20/09/2023</div>
-                                                    <small class="payment-date">(Il y a 2 mois)</small>
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-primary btn-action" onclick="showPaymentDetails('ETU004', 'Marie Leroy')">
-                                                        <i class="fas fa-receipt"></i> Reçu
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+
+                
+<div class="container py-4">
+
+    <h2 class="mb-4"><i class="fas fa-coins me-2"></i>Gestion Financière des Étudiants</h2>
+
+    <?php foreach ($departments as $dep): ?>
+        <?php
+            // Charger les étudiants de cette filière
+            $studentsDept = getStudentsByDepartment($connecter, $dep['department_id']);
+
+            // Compter les statuts
+            $soldes = 0; $partiels = 0; $impayes = 0;
+
+            foreach ( $studentsDept as $s) {
+                if ($s['statut'] === 'Soldé') $soldes++;
+                elseif ($s['statut'] === 'Partiel') $partiels++;
+                else $impayes++;
+            }
+        ?>
+
+        <!-- ======================================================
+              CARTE FILIÈRE / DÉPARTEMENT
+        ======================================================= -->
+        <div class="card finance-card">
+
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-building-columns me-2"></i>
+                        <?= $dep['department_name'] ?>
+                    </h5>
+
+                    <div>
+                        <span class="badge bg-success badge-status"><?= $soldes ?> soldés</span>
+                        <span class="badge bg-warning text-dark badge-status mx-2"><?= $partiels ?> partiels</span>
+                        <span class="badge bg-danger badge-status"><?= $impayes ?> impayés</span>
                     </div>
                 </div>
+            </div>
+
+            <div class="card-body">
+
+                <?php if (count($studentsDept) === 0): ?>
+                    <p class="text-muted">Aucun étudiant dans cette filière.</p>
+                <?php else: ?>
+
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                        <tr>
+                            <th>Étudiant</th>
+                            <th>Total dû</th>
+                            <th>Payé</th>
+                            <th>Reste</th>
+                            <th>Statut</th>
+                            <th>Dernier Paiement</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+
+                        <tbody>
+
+                        <?php foreach ($studentsDept as $stu): ?>
+
+                            <?php
+                                // Badge de statut
+                                $badge = match($stu['statut']) {
+                                    'Soldé' => '<span class="badge bg-success">Soldé</span>',
+                                    'Partiel' => '<span class="badge bg-warning text-dark">Partiel</span>',
+                                    default => '<span class="badge bg-danger">Impayé</span>',
+                                };
+
+                                
+
+
+                                // Date
+                                $date_pay = $stu['dernier_paiement'] ? date("d/m/Y", strtotime($stu['dernier_paiement'])) : "-";
+                            ?>
+
+                            <tr>
+                                <td>
+                                    <strong><?= $stu['first_name'] . ' ' . $stu['last_name'] ?></strong><br>
+                                    <small class="text-muted"><?= $stu['matricule'] ?></small>
+                                </td>
+
+                                <td><?= number_format($stu['total_due'], 0, "", " ") ?> FCFA</td>
+                                <td><?= number_format($stu['total_paid'], 0, "", " ") ?> FCFA</td>
+
+                                <td class="<?= ($stu['reste'] > 0 ? 'solde-negative' : 'solde-positive') ?>">
+                                    <?= number_format($stu['reste'], 0, "", " ") ?> FCFA
+                                </td>
+
+                                <td><?= $badge ?></td>
+
+                                <td><?= $date_pay ?></td>
+
+                                <td>
+                                    <button 
+                                        class="btn btn-sm btn-outline-primary btn-action"
+                                        data-studentid="<?= $stu['student_id'] ?>"
+                                        data-name="<?= $stu['first_name'] . ' ' . $stu['last_name'] ?>"
+                                        data-matricule="<?= $stu['matricule'] ?>"
+                                        data-filiere="<?= $stu['department_name'] ?>"
+                                        onclick="openPaiementModal(this)">
+                                        <i class="fa fa-receipt"></i> Reçu
+                                    </button>
+
+
+
+                                </td>
+                            </tr>
+
+                        <?php endforeach; ?>
+
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php endif; ?>
+
+            </div>
+        </div>
+
+    <?php endforeach; ?>
+
+</div>
+
             </div>
         </main>
 
@@ -744,21 +822,30 @@ if (isset($_POST["deconnexion"])){
     </div>
 </div>
 
+
+
+
+
+
 <!-- Modal Détails Paiements -->
 <div class="modal fade" id="detailsPaiementModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+        <div class="modal-content" >
             <div class="modal-header">
-                <h5 class="modal-title">Historique des Paiements - <span id="modal-etudiant-name"></span></h5>
+                <h5 class="modal-title">Historique des Paiements </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" id="print-area"> 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <strong>Filière:</strong> <span id="modal-filiere">Informatique</span>
+                        <strong>Nom et Prénom:</strong> <span id="modal-etudiant-name"></span>
                     </div>
                     <div class="col-md-6">
-                        <strong>Matricule:</strong> <span id="modal-matricule">ETU001</span>
+                        <strong>Filière:</strong> <span id="modal-filiere"></span>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <strong>Matricule:</strong> <span id="modal-matricule"></span>
                     </div>
                 </div>
                 
@@ -771,7 +858,7 @@ if (isset($_POST["deconnexion"])){
                                 <th>Moyen</th>
                                 <th>Montant</th>
                                 <th>Référence</th>
-                                <th>Action</th>
+                               
                             </tr>
                         </thead>
                         <tbody id="modal-paiements-body">
@@ -783,112 +870,119 @@ if (isset($_POST["deconnexion"])){
                 <div class="row mt-3">
                     <div class="col-md-6">
                         <div class="alert alert-success">
-                            <strong>Total payé:</strong> <span id="modal-total-paye">200 000</span> FCFA
+                            <strong>Total payé:</strong> <span id="modal-total-paye"></span> FCFA
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="alert alert-info">
-                            <strong>Reste à payer:</strong> <span id="modal-reste">0</span> FCFA
+                            <strong>Reste à payer:</strong> <span id="modal-reste"></span> FCFA
                         </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                <button type="button" class="btn user-dropdown">
+                <button type="button" id="btn-print-recu" class="btn user-dropdown">
                     <i class="fas fa-print me-1"></i>Imprimer le reçu
                 </button>
             </div>
         </div>
     </div>
 </div>
+  <!-----  paiements especes -->
 
-<!-------debut paiements script----->
-<script>
-    // Données des paiements (exemple)
-    const paiementsEtudiants = {
-        'ETU001': [
-            { date: '2023-09-10', type: 'Scolarité', moyen: 'Mobile Money', montant: 100000, reference: 'MOMO1234' },
-            { date: '2023-10-05', type: 'Scolarité', moyen: 'Espèces', montant: 100000, reference: '' }
-        ],
-        'ETU002': [
-            { date: '2023-09-15', type: 'Scolarité', moyen: 'Virement', montant: 120000, reference: 'VIR7890' }
-        ],
-        'ETU004': [
-            { date: '2023-09-20', type: 'Scolarité', moyen: 'Chèque', montant: 180000, reference: 'CHQ4567' }
-        ]
-    };
+ 
 
-    // Afficher les détails des paiements dans le modal
-    function showPaymentDetails(matricule, nom) {
-        const paiements = paiementsEtudiants[matricule] || [];
-        const tbody = document.getElementById('modal-paiements-body');
-        tbody.innerHTML = '';
-        
-        let totalPaye = 0;
-        
-        paiements.forEach(p => {
-            totalPaye += p.montant;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${new Date(p.date).toLocaleDateString('fr-FR')}</td>
-                <td>${p.type}</td>
-                <td>${p.moyen}</td>
-                <td>${p.montant.toLocaleString()} FCFA</td>
-                <td>${p.reference || '-'}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-danger">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-        
-        // Mettre à jour les totaux
-        document.getElementById('modal-total-paye').textContent = totalPaye.toLocaleString();
-        document.getElementById('modal-etudiant-name').textContent = nom;
-        document.getElementById('modal-matricule').textContent = matricule;
-        
-        // Calculer le reste (exemple: frais fixes)
-        const fraisTotaux = matricule === 'ETU004' ? 180000 : 200000;
-        const reste = fraisTotaux - totalPaye;
-        document.getElementById('modal-reste').textContent = reste.toLocaleString();
-        
-        // Afficher le modal
-        const modal = new bootstrap.Modal(document.getElementById('detailsPaiementModal'));
-        modal.show();
-    }
 
-    // Initialisation
-    document.addEventListener('DOMContentLoaded', function() {
-        // Gestion de la hauteur du sidebar
-        function handleSidebarHeight() {
-            const sidebar = document.getElementById('sidebarMenu');
-            if (window.innerWidth >= 768) {
-                sidebar.style.height = 'calc(100vh - 73px)';
-            } else {
-                sidebar.style.height = '100vh';
-            }
-        }
+<!-- ======== MODAL ======== -->
+<div id="modalPaiement" style="
+    display:none;
+    position:fixed;
+    z-index:1000;
+    left:0;
+    top:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.5);
+">
+    <div style="
+        background:white;
+        width:450px;
+        margin:80px auto;
+        padding:25px;
+        border-radius:8px;
+        box-shadow:0 0 10px #666;
+        position:relative;
+    ">
         
-        window.addEventListener('resize', handleSidebarHeight);
-        handleSidebarHeight();
-        
-        // Animation pour les cartes au chargement
-        const cards = document.querySelectorAll('.finance-card');
-        cards.forEach((card, index) => {
-            card.style.animationDelay = `${index * 0.1}s`;
-        });
-        
-        // Démarrer les tooltips Bootstrap
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    });
-</script>
-<!-------fin paiements script----->
+        <!-- Bouton fermeture -->
+        <span onclick="fermerModalPaiement()" 
+              style="position:absolute; right:15px; top:10px; cursor:pointer; font-size:20px;">
+            &times;
+        </span>
+
+        <h3 style="text-align:center; margin-bottom:20px;">
+            💵 Paiement en Espèces – Administration
+        </h3>
+
+        <form method="POST">
+
+            <label>Nom de l'Étudiant :</label>
+            <select name="student_id" required
+                style="width:100%; padding:10px; margin-top:8px; border:1px solid #888; border-radius:5px;">
+                <option value="" disabled selected>Choisir un étudiant</option>
+
+                <?php foreach ($students as $etudiant): ?>
+                    <option value="<?= $etudiant['student_id']; ?>">
+                        <?= $etudiant['first_name'] . ' ' . $etudiant['last_name'] . ' ( ' . $etudiant['matricule'] . ' - ' . $etudiant['level_name'] . ' - ' . $etudiant['dep_name'] . ' )'; ?>
+                    </option>
+                <?php endforeach; ?>
+
+            </select>
+
+
+
+
+            <label style="margin-top:15px; display:block;">Montant à payer (FCFA) :</label>
+            <input 
+                type="number" 
+                name="montant_paiement" 
+                placeholder="Ex : 150.000 FCFA" 
+                required
+                style="width:100%; padding:10px; margin-top:8px; border:1px solid #888; border-radius:5px;"
+            >
+
+            <label for="type_paiement" style="margin-top:15px; display:block;">Motif du paiement :</label>
+            <select name="type_paiement" required
+                style="width:100%; padding:10px; margin-top:8px; border:1px solid #888; border-radius:5px;">
+                <option value="" disabled selected>Choisir un motif</option>
+                <option value="Scolarité">Scolarité</option>
+                <option value="Inscription">Inscription</option>
+                <option value="Autre">Autre</option>
+            </select>
+
+            <label for="methode_paiement" style="margin-top:15px; display:block;">Méthode de paiement:</label>
+            <select name="methode_paiement" id="methode_paiement" required
+                style="width:100%; padding:10px; margin-top:8px; border:1px solid #888; border-radius:5px;">
+                <option value="" disabled selected>Choisir une méthode</option>
+                <option value="Espèces">Espèces</option>
+            </select>
+
+            <button 
+                type="submit" 
+                name="submit_payment"
+                style="width:100%; padding:12px; background:#198754; color:white; border:none; border-radius:5px; margin-top:20px; cursor:pointer;">
+                Enregistrer le paiement
+            </button>
+        </form>
+    </div>
+</div>
+
+
+
+
+
+
 
 <script>
     function afficherDateHeure() {
@@ -911,6 +1005,144 @@ if (isset($_POST["deconnexion"])){
     setInterval(afficherDateHeure, 1000);
     afficherDateHeure();
 </script>
+<!-- ======== JAVASCRIPT POUR LE MODAL ======== -->
+<script>
+function ouvrirModalPaiement() {
+    document.getElementById("modalPaiement").style.display = "block";
+}
+
+function fermerModalPaiement() {
+    document.getElementById("modalPaiement").style.display = "none";
+}
+</script>
+
+
+
+<!-- ======== JAVASCRIPT POUR LE MODAL DÉTAILS PAIEMENTS ======== -->
+<script>
+function openPaiementModal(button) {
+    const studentId = button.getAttribute('data-studentid');
+    const studentName = button.getAttribute('data-name');
+    const matricule = button.getAttribute('data-matricule');
+    const filiere = button.getAttribute('data-filiere');
+
+    // Mettre à jour les informations de l'étudiant dans le modal
+    document.getElementById('modal-etudiant-name').innerText = studentName;
+    document.getElementById('modal-matricule').innerText = matricule;
+    document.getElementById('modal-filiere').innerText = filiere;
+
+    // Vider le corps du tableau des paiements
+    const paiementsBody = document.getElementById('modal-paiements-body');
+    paiementsBody.innerHTML = '';
+
+    // Faire une requête AJAX pour récupérer les paiements
+    fetch(`fetch_payments.php?student_id=${studentId}`)
+        .then(response => response.json())
+        .then(data => {
+            let totalPaye = data.total_paye;
+            let reste = data.reste;
+
+            // Mettre à jour les totaux dans le modal
+            document.getElementById('modal-total-paye').innerText = totalPaye.toLocaleString();
+            document.getElementById('modal-reste').innerText = reste.toLocaleString();
+
+            // Remplir le tableau des paiements
+            data.paiements.forEach(payment => {
+                const row = document.createElement('tr');
+
+                row.innerHTML = `
+                    <td>${payment.payment_date}</td>
+                    <td>${payment.types_paiement}</td>
+                    <td>${payment.method}</td>
+                    <td>${parseInt(payment.amount).toLocaleString()} FCFA</td>
+                    <td>${payment.reference}</td>
+                    
+                `;
+
+                paiementsBody.appendChild(row);
+            });
+
+            // Afficher le modal
+            const paiementModal = new bootstrap.Modal(document.getElementById('detailsPaiementModal'));
+            paiementModal.show();
+        })
+        .catch(error => {
+            console.error('Erreur lors de la récupération des paiements:', error);
+        });
+}
+</script>
+
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+    document.getElementById("btn-print-recu").addEventListener("click", function () {
+
+        // Sélectionner la zone à imprimer
+        let content = document.getElementById("print-area").innerHTML;
+
+        // Ouvrir une nouvelle fenêtre temporaire
+        let win = window.open('', '', 'width=900,height=700');
+
+        win.document.write(`
+            <html>
+            <head>
+                <title>Reçu de Paiement</title>
+
+                <!-- Importer Bootstrap pour garder le style -->
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+                <style>
+                    body {
+                        padding: 20px;
+                        font-family: Arial, sans-serif;
+                    }
+                    h5 {
+                        text-align: center;
+                        margin-bottom: 20px;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                    }
+                    table, th, td {
+                        border: 1px solid #ccc;
+                    }
+                    th, td {
+                        padding: 8px;
+                        text-align: left;
+                    }
+                </style>
+
+            </head>
+            <body>
+                <h4 class="text-center">Reçu de Paiement</h4>
+                ${content}
+            </body>
+            </html>
+        `);
+
+        win.document.close();
+
+        // Attendre un peu pour charger le CSS avant impression
+        setTimeout(() => {
+            win.print();
+            win.close();
+        }, 500);
+
+    });
+
+});
+
+</script>
+
+
+
+
+
+
 
 <script src="../bootstrap-5.3.7\bootstrap-5.3.7\dist\js\bootstrap.bundle.min.js"></script>
 

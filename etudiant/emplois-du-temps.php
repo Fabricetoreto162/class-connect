@@ -630,18 +630,20 @@ foreach ($emploi_du_temps as $cours) {
                                                             <?php foreach ($cours_par_jour[$jour] as $cours): ?>
                                                                 <div class="schedule-cell">
                                                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                                                        <strong class="text-primary"><?= htmlspecialchars($cours['subject_name']) ?></strong>
-                                                                        <span class="badge bg-dark course-badge"><?= htmlspecialchars($cours['classroom_name']) ?></span>
+                                                                        <strong class="text-primary"><?= htmlspecialchars($cours['subject_name']) ?></strong> <br>
+                                                                        
                                                                     </div>
-                                                                    <small class="d-block text-muted mb-2">
-                                                                        <i class="fas fa-user-tie me-1"></i><?= htmlspecialchars($cours['teacher_fullname']) ?>
-                                                                    </small>
-                                                                    <small class="text-muted d-block">
-                                                                        <i class="fas fa-calendar me-1"></i>
-                                                                        Du <?= date('d/m/Y', strtotime($cours['date_start'])) ?> 
-                                                                        au <?= date('d/m/Y', strtotime($cours['date_end'])) ?>
-                                                                    </small>
-                                                                </div>
+                                                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                        <span class="badge bg-success course-badge">
+                                                                            <i class="fas fa-chalkboard me-1"></i><?= htmlspecialchars($cours['classroom_name']) ?>
+                                                                        </span>
+                                                                       
+                                                                    </div>
+                                                                    <div class="d-flex justify-content-between align-items-start ">
+                                                                        <small class="text-muted">
+                                                                            <i class="fas fa-user me-1"></i><?= htmlspecialchars($cours['teacher_fullname']) ?>
+                                                                        </small>
+                                                                    </div>
                                                             <?php endforeach; ?>
                                                         <?php else: ?>
                                                             <div class="schedule-cell text-muted d-flex align-items-center justify-content-center">

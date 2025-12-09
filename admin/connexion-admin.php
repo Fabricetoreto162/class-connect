@@ -36,7 +36,7 @@ if (isset($_POST["connexion"])) {
             // Vérification des informations
             if ($email_defaut == $email && $password_input==$password_defaut && $role_defaut == "admin" && $email_defaut==$email
              ) {
-                $_SESSION["Nom"] = $nom . " " . $prenom;
+                $_SESSION["admin-nom"] = $nom . " " . $prenom;
                 header("Location:dashbord-admin.php");
                 exit();  
             } else {

@@ -39,7 +39,7 @@ if (isset($_POST["connexion"])) {
                     exit();
                 } else {
                     // Si tout est bon
-                    $_SESSION["user_id_teacher"] = $resultat_enseignant["teacher_id"];
+                    $_SESSION["teacher_id"] = $resultat_enseignant["teacher_id"];
                     $_SESSION["email"] = $resultat_enseignant["email"];
                     $_SESSION["role"] = $resultat_enseignant["role"];
                     $_SESSION["first_name"] = $resultat_enseignant["first_name"];

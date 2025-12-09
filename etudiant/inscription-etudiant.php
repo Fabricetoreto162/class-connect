@@ -1,50 +1,156 @@
 <?php
 session_start();
 
-$msg1 = "";
+// Initialisation des variables
+$errors = [];
 $success_msg = "";
+$field_values = [
+    'nom' => '',
+    'prenom' => '',
+    'email' => '',
+    'date_naissance' => '',
+    'sexe' => '',
+    'contact' => ''
+];
 
-include("../connexion-bases.php");
-if(isset($_POST["Inscription"])){
-   
+if (isset($_POST["Inscription"])) {
     
-   
-
-        if(!empty($_POST["nom"]) && 
-           !empty($_POST["prenom"]) &&
-           !empty($_POST["email"]) &&
-           !empty($_POST["password"]) &&
-           !empty($_POST["date_naissance"]) &&
-           !empty($_POST["sexe"]) &&
-           !empty($_POST["contact"])
-        ) {
-            
-            // Fonction pour la sécurisation des données
-            function verification_donnees_etudiant($etudiant){
-                $etudiant = trim($etudiant);
-                $etudiant = htmlspecialchars($etudiant);
-                $etudiant = stripcslashes($etudiant);
-                $etudiant = strip_tags($etudiant);      
-                return $etudiant;
-            }
-
-            $nom_etudiant = strtoupper(verification_donnees_etudiant($_POST["nom"]));
-            $prenom_etudiant = ucfirst(strtolower(verification_donnees_etudiant($_POST["prenom"])));
-            $email_etudiant = verification_donnees_etudiant($_POST["email"]);
-            $password_etudiant = password_hash(verification_donnees_etudiant($_POST["password"]), PASSWORD_DEFAULT);
-            $date_naissance = verification_donnees_etudiant($_POST["date_naissance"]);
-            $sexe = verification_donnees_etudiant($_POST["sexe"]);
-            $role = "etudiant";
-            $code = "CON";
-            $annee = date("Y");
-
+    // Récupération et nettoyage des données
+    function verification_donnees($data) {
+        $data = trim($data);
+        $data = stripslashes($data);
+        $data = htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+        return $data;
+    }
+    
+    // Récupérer et stocker les valeurs pour réaffichage
+    $field_values['nom'] = isset($_POST["nom"]) ? verification_donnees($_POST["nom"]) : '';
+    $field_values['prenom'] = isset($_POST["prenom"]) ? verification_donnees($_POST["prenom"]) : '';
+    $field_values['email'] = isset($_POST["email"]) ? filter_var($_POST["email"], FILTER_SANITIZE_EMAIL) : '';
+    $field_values['date_naissance'] = isset($_POST["date_naissance"]) ? verification_donnees($_POST["date_naissance"]) : '';
+    $field_values['sexe'] = isset($_POST["sexe"]) ? verification_donnees($_POST["sexe"]) : '';
+    $field_values['contact'] = isset($_POST["contact"]) ? verification_donnees($_POST["contact"]) : '';
+    
+    // Validation du nom
+    if (empty($_POST["nom"])) {
+        $errors['nom'] = "Le nom est obligatoire.";
+    } else {
+        $nom = strtoupper($field_values['nom']);
+        if (!preg_match('/^[a-zA-ZÀ-ÿ\s\-]+$/', $nom)) {
+            $errors['nom'] = "Le nom ne doit contenir que des lettres, espaces et tirets.";
+        }
+        if (strlen($nom) < 2) {
+            $errors['nom'] = "Le nom doit contenir au moins 2 caractères.";
+        }
+    }
+    
+    // Validation du prénom
+    if (empty($_POST["prenom"])) {
+        $errors['prenom'] = "Le prénom est obligatoire.";
+    } else {
+        $prenom = ucfirst(strtolower($field_values['prenom']));
+        if (!preg_match('/^[a-zA-ZÀ-ÿ\s\-]+$/', $prenom)) {
+            $errors['prenom'] = "Le prénom ne doit contenir que des lettres, espaces et tirets.";
+        }
+        if (strlen($prenom) < 2) {
+            $errors['prenom'] = "Le prénom doit contenir au moins 2 caractères.";
+        }
+    }
+    
+    // Validation de l'email
+    if (empty($_POST["email"])) {
+        $errors['email'] = "L'email est obligatoire.";
+    } else {
+        $email = $field_values['email'];
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = "Format d'email invalide.";
+        } elseif (!preg_match('/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $email)) {
+            $errors['email'] = "Format d'email invalide. Exemple: exemple@domaine.com";
+        }
+    }
+    
+    // Validation de la date de naissance
+    if (empty($_POST["date_naissance"])) {
+        $errors['date_naissance'] = "La date de naissance est obligatoire.";
+    } else {
+        $date_naissance = $field_values['date_naissance'];
+        $today = date("Y-m-d");
+        $min_date = date("Y-m-d", strtotime("-100 years"));
+        $max_date = date("Y-m-d", strtotime("-10 years")); // Au moins 10 ans
+        
+        if ($date_naissance > $today) {
+            $errors['date_naissance'] = "La date de naissance ne peut pas être dans le futur.";
+        } elseif ($date_naissance < $min_date) {
+            $errors['date_naissance'] = "Veuillez entrer une date de naissance valide.";
+        } elseif ($date_naissance > $max_date) {
+            $errors['date_naissance'] = "Vous devez avoir au moins 10 ans pour vous inscrire.";
+        }
+    }
+    
+    // Validation du sexe
+    if (empty($_POST["sexe"])) {
+        $errors['sexe'] = "Le sexe est obligatoire.";
+    } elseif (!in_array($_POST["sexe"], ['M', 'F'])) {
+        $errors['sexe'] = "Veuillez sélectionner un sexe valide.";
+    }
+    
+    // Validation du contact
+    if (empty($_POST["contact"])) {
+        $errors['contact'] = "Le contact est obligatoire.";
+    } else {
+        $contact = $field_values['contact'];
+        // Validation simple du numéro de téléphone
+        if (!preg_match('/^[0-9\s\-\+\(\)]{8,20}$/', $contact)) {
+            $errors['contact'] = "Format de contact invalide. Utilisez uniquement des chiffres, espaces, tirets, plus et parenthèses.";
+        }
+    }
+    
+    // Validation du mot de passe
+    if (empty($_POST["password"])) {
+        $errors['password'] = "Le mot de passe est obligatoire.";
+    } else {
+        $password = verification_donnees($_POST["password"]);
+        if (strlen($password) < 8) {
+            $errors['password'] = "Le mot de passe doit contenir au moins 8 caractères.";
+        }
+    }
+    
+    // Validation de la confirmation du mot de passe
+    if (empty($_POST["confirm_password"])) {
+        $errors['confirm_password'] = "Veuillez confirmer votre mot de passe.";
+    } elseif (isset($_POST["password"]) && $_POST["password"] !== $_POST["confirm_password"]) {
+        $errors['confirm_password'] = "Les mots de passe ne correspondent pas.";
+    }
+    
+    // Validation des conditions
+    if (!isset($_POST["terms"])) {
+        $errors['terms'] = "Vous devez accepter les conditions d'utilisation.";
+    }
+    
+    // Si aucune erreur, procéder à l'inscription
+    if (empty($errors)) {
+        include("../connexion-bases.php");
+        
+        // Formater les données finales
+        $nom_etudiant = strtoupper(verification_donnees($_POST["nom"]));
+        $prenom_etudiant = ucfirst(strtolower(verification_donnees($_POST["prenom"])));
+        $email_etudiant = filter_var($_POST["email"], FILTER_SANITIZE_EMAIL);
+        $password_etudiant = password_hash(verification_donnees($_POST["password"]), PASSWORD_DEFAULT);
+        $date_naissance = verification_donnees($_POST["date_naissance"]);
+        $sexe = verification_donnees($_POST["sexe"]);
+        $role = "etudiant";
+        $code = "CON";
+        $annee = date("Y");
+        $contact = verification_donnees($_POST["contact"]);
+        
+        try {
             // Vérifier si l'email existe déjà
             $check_email = $connecter->prepare("SELECT email FROM students WHERE email = :email");
             $check_email->bindParam(":email", $email_etudiant);
             $check_email->execute();
             
             if($check_email->rowCount() > 0) {
-                $msg1 = "Cette adresse email est déjà utilisée.";
+                $errors['email'] = "Cette adresse email est déjà utilisée.";
             } else {
                 // Générer le matricule automatiquement
                 $stmt = $connecter->prepare("SELECT matricule FROM students WHERE matricule LIKE :prefix ORDER BY matricule DESC LIMIT 1"); 
@@ -61,7 +167,6 @@ if(isset($_POST["Inscription"])){
 
                 $numeroOrdre = str_pad($num, 3, "0", STR_PAD_LEFT);
                 $matricule = "$code/$annee/$numeroOrdre";
-                $contact = verification_donnees_etudiant($_POST["contact"]);
 
                 // Insertion dans la table students
                 $insertion_etudiant = $connecter->prepare("INSERT INTO students(matricule, first_name, last_name, birth_date, contact, gender, email) VALUES(:matricule, :first_name, :last_name, :birth_date, :contact, :gender, :email)"); 
@@ -93,12 +198,14 @@ if(isset($_POST["Inscription"])){
                 header("Location: reussite-etudiant.php");
                 exit();
             }
-        } else {
-            $msg1 = "* Merci de remplir tous les champs obligatoires.";
+            
+        } catch (PDOException $e) {
+            $errors['general'] = "Erreur de connexion à la base de données : " . $e->getMessage();
         }
-   
+    }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -146,16 +253,13 @@ if(isset($_POST["Inscription"])){
         }
         
         .registration-container {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
+            background: white;
             border-radius: 20px;
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.3);
         }
         
         .image-section {
-           
             display: flex;
             align-items: center;
             justify-content: center;
@@ -164,9 +268,7 @@ if(isset($_POST["Inscription"])){
             position: relative;
             overflow: hidden;
             height: 100%;
-            
         }
-        
         
         .image-section::before {
             content: '';
@@ -207,21 +309,12 @@ if(isset($_POST["Inscription"])){
             box-shadow: 0 0 0 0.2rem rgba(47, 88, 235, 0.25);
         }
         
-        .input-group {
-            position: relative;
+        .form-control.is-valid {
+            border-color: #28a745;
         }
         
-        .input-icon {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d;
-            z-index: 5;
-        }
-        
-        .form-control.with-icon {
-            padding-left: 45px;
+        .form-control.is-invalid {
+            border-color: #dc3545;
         }
         
         .password-toggle {
@@ -256,79 +349,6 @@ if(isset($_POST["Inscription"])){
             border-radius: 10px;
             border: none;
             padding: 12px 15px;
-        }
-        
-        .step-indicator {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 30px;
-            position: relative;
-        }
-        
-        .step-indicator::before {
-            content: '';
-            position: absolute;
-            top: 15px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: #e9ecef;
-            z-index: 1;
-        }
-        
-        .step {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: white;
-            border: 2px solid #e9ecef;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            color: #6c757d;
-            position: relative;
-            z-index: 2;
-        }
-        
-        .step.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-        }
-        
-        .form-step {
-            display: none;
-        }
-        
-        .form-step.active {
-            display: block;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .form-navigation {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 30px;
-        }
-        
-        .btn-outline-primary-custom {
-            border: 2px solid var(--primary);
-            color: var(--primary);
-            border-radius: 50px;
-            padding: 10px 25px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-outline-primary-custom:hover {
-            background: var(--primary);
-            color: white;
         }
         
         @media (max-width: 992px) {
@@ -368,13 +388,20 @@ if(isset($_POST["Inscription"])){
             color: var(--primary);
             font-weight: 500;
         }
-
-         footer {
-      background: var(--dark);
-      color: white;
-      padding: 25px 0;
-      margin-top: auto;
-    }
+        
+        footer {
+            background: var(--dark);
+            color: white;
+            padding: 25px 0;
+            margin-top: auto;
+        }
+        
+        .invalid-feedback {
+            display: block;
+            color: #dc3545;
+            font-size: 0.875em;
+            margin-top: 0.25rem;
+        }
     </style>
 </head>
 <body>
@@ -415,9 +442,7 @@ if(isset($_POST["Inscription"])){
                         <!-- Section image -->
                         <div class="col-lg-6 d-none d-lg-block">
                             <div class="image-section h-100">
-                                <div class="text-center position-relative img z-2" >
-                                    
-                                </div>
+                                
                             </div>
                         </div>
                         
@@ -426,148 +451,172 @@ if(isset($_POST["Inscription"])){
                             <div class="form-section">
                                 <div class="text-center mb-4">
                                     <h2 class="form-title">Inscription Étudiant</h2>
-                                    <p class="form-subtitle">Créez votre compte en quelques étapes</p>
+                                    <p class="form-subtitle">Créez votre compte étudiant</p>
                                 </div>
                                 
-                                <!-- Indicateur d'étapes -->
-                                <div class="step-indicator">
-                                    <div class="step active">1</div>
-                                    <div class="step">2</div>
-                                    <div class="step">3</div>
-                                </div>
-                                
-                                <!-- Messages d'alerte -->
-                                <?php if($msg1): ?>
+                                <!-- Message d'erreur général -->
+                                <?php if(isset($errors['general'])): ?>
                                     <div class="alert alert-danger alert-custom mb-4" role="alert">
-                                        <i class="fas fa-exclamation-circle me-2"></i> <?= $msg1 ?>
+                                        <i class="fas fa-exclamation-circle me-2"></i> <?= $errors['general'] ?>
                                     </div>
                                 <?php endif; ?>
                                 
-                                
-                                
-                                <form role="form" method="POST" action="" >
-                                    <!-- Étape 1: Informations personnelles -->
-                                    <div class="form-step active" id="step1">
-                                        <h5 class="mb-4">Informations personnelles</h5>
-                                        
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <div class="floating-label">
-                                                    <input type="text" name="nom" class="form-control" placeholder=" " required>
-                                                    <label for="nom"><i class="fas fa-user me-2"></i>Nom *</label>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <div class="floating-label">
-                                                    <input type="text" name="prenom" class="form-control" placeholder=" " required>
-                                                    <label for="prenom"><i class="fas fa-user me-2"></i>Prénom *</label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-3">
+                                <form role="form" method="POST" action="">
+                                    <!-- Informations personnelles -->
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
                                             <div class="floating-label">
-                                                <input type="email" name="email" class="form-control" placeholder=" " required>
-                                                <label for="email"><i class="fas fa-envelope me-2"></i>Email *</label>
+                                                <input type="text" name="nom" 
+                                                       class="form-control <?php echo isset($errors['nom']) ? 'is-invalid' : (isset($_POST['nom']) && empty($errors['nom']) ? 'is-valid' : ''); ?>" 
+                                                       placeholder=" " 
+                                                       value="<?php echo htmlspecialchars($field_values['nom']); ?>" 
+                                                       required>
+                                                <label for="nom"><i class="fas fa-user me-2"></i>Nom *</label>
+                                                <?php if(isset($errors['nom'])): ?>
+                                                    <div class="invalid-feedback"><?php echo $errors['nom']; ?></div>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
-                                        
-                                        <div class="mb-3">
+                                        <div class="col-md-6 mb-3">
                                             <div class="floating-label">
-                                                <input type="date" name="date_naissance" class="form-control" placeholder=" " required>
-                                                <label for="date_naissance"><i class="fas fa-calendar-alt me-2"></i>Date de naissance *</label>
+                                                <input type="text" name="prenom" 
+                                                       class="form-control <?php echo isset($errors['prenom']) ? 'is-invalid' : (isset($_POST['prenom']) && empty($errors['prenom']) ? 'is-valid' : ''); ?>" 
+                                                       placeholder=" " 
+                                                       value="<?php echo htmlspecialchars($field_values['prenom']); ?>" 
+                                                       required>
+                                                <label for="prenom"><i class="fas fa-user me-2"></i>Prénom *</label>
+                                                <?php if(isset($errors['prenom'])): ?>
+                                                    <div class="invalid-feedback"><?php echo $errors['prenom']; ?></div>
+                                                <?php endif; ?>
                                             </div>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <div class="floating-label">
-                                                <select name="sexe" class="form-control" required>
-                                                    <option value=""></option>
-                                                    <option value="M">Homme</option>
-                                                    <option value="F">Femme</option>
-                                                </select>
-                                                <label for="sexe"><i class="fas fa-venus-mars me-2"></i>Sexe *</label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="form-navigation">
-                                            <button type="button" class="btn btn-outline-primary-custom" id="next1">Suivant</button>
                                         </div>
                                     </div>
                                     
-                                    <!-- Étape 2: Informations de contact -->
-                                    <div class="form-step" id="step2">
-                                        <h5 class="mb-4">Informations de contact</h5>
-                                        
-                                        <div class="mb-3">
-                                            <div class="floating-label">
-                                                <input type="text" name="contact" class="form-control" placeholder=" " required>
-                                                <label for="contact"><i class="fas fa-phone me-2"></i>Contact *</label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <div class="floating-label position-relative">
-                                                <input type="password" name="password" id="password" class="form-control" placeholder=" " required>
-                                                <label for="password"><i class="fas fa-lock me-2"></i>Mot de passe *</label>
-                                                <button type="button" class="password-toggle" id="togglePassword">
-                                                    <i class="fas fa-eye" id="eyeIcon"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-4">
-                                            <div class="floating-label position-relative">
-                                                <input type="password" id="confirmPassword" class="form-control" placeholder=" " required>
-                                                <label for="confirmPassword"><i class="fas fa-lock me-2"></i>Confirmer le mot de passe *</label>
-                                                <button type="button" class="password-toggle" id="toggleConfirmPassword">
-                                                    <i class="fas fa-eye" id="confirmEyeIcon"></i>
-                                                </button>
-                                            </div>
-                                            <div class="invalid-feedback" id="passwordError">Les mots de passe ne correspondent pas</div>
-                                        </div>
-                                        
-                                        <div class="form-navigation">
-                                            <button type="button" class="btn btn-outline-primary-custom" id="prev2">Précédent</button>
-                                            <button type="button" class="btn btn-outline-primary-custom" id="next2">Suivant</button>
+                                    <!-- Email -->
+                                    <div class="mb-3">
+                                        <div class="floating-label">
+                                            <input type="email" name="email" 
+                                                   class="form-control <?php echo isset($errors['email']) ? 'is-invalid' : (isset($_POST['email']) && empty($errors['email']) ? 'is-valid' : ''); ?>" 
+                                                   placeholder=" " 
+                                                   value="<?php echo htmlspecialchars($field_values['email']); ?>" 
+                                                   required>
+                                            <label for="email"><i class="fas fa-envelope me-2"></i>Email *</label>
+                                            <?php if(isset($errors['email'])): ?>
+                                                <div class="invalid-feedback"><?php echo $errors['email']; ?></div>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     
-                                    <!-- Étape 3: Récapitulatif -->
-                                    <div class="form-step" id="step3">
-                                        <h5 class="mb-4">Récapitulatif</h5>
-                                        
-                                        <div class="card mb-4">
-                                            <div class="card-body">
-                                                <p class="mb-2"><strong>Nom:</strong> <span id="summaryNom"></span></p>
-                                                <p class="mb-2"><strong>Prénom:</strong> <span id="summaryPrenom"></span></p>
-                                                <p class="mb-2"><strong>Email:</strong> <span id="summaryEmail"></span></p>
-                                                <p class="mb-2"><strong>Date de naissance:</strong> <span id="summaryDateNaissance"></span></p>
-                                                <p class="mb-2"><strong>Sexe:</strong> <span id="summarySexe"></span></p>
-                                                <p class="mb-0"><strong>Contact:</strong> <span id="summaryContact"></span></p>
-                                            </div>
+                                    <!-- Date de naissance -->
+                                    <div class="mb-3">
+                                        <div class="floating-label">
+                                            <input type="date" name="date_naissance" 
+                                                   class="form-control <?php echo isset($errors['date_naissance']) ? 'is-invalid' : (isset($_POST['date_naissance']) && empty($errors['date_naissance']) ? 'is-valid' : ''); ?>" 
+                                                   placeholder=" " 
+                                                   value="<?php echo htmlspecialchars($field_values['date_naissance']); ?>" 
+                                                   required>
+                                            <label for="date_naissance"><i class="fas fa-calendar-alt me-2"></i>Date de naissance *</label>
+                                            <?php if(isset($errors['date_naissance'])): ?>
+                                                <div class="invalid-feedback"><?php echo $errors['date_naissance']; ?></div>
+                                            <?php endif; ?>
                                         </div>
-                                        
-                                        <div class="form-check mb-4">
-                                            <input class="form-check-input" type="checkbox" id="termsCheck" required>
-                                            <label class="form-check-label" for="termsCheck">
-                                                J'accepte les <a href="#" class="text-primary">conditions d'utilisation</a> et la <a href="#" class="text-primary">politique de confidentialité</a>
-                                            </label>
+                                    </div>
+                                    
+                                    <!-- Sexe -->
+                                    <div class="mb-3">
+                                        <div class="floating-label">
+                                            <select name="sexe" 
+                                                    class="form-control <?php echo isset($errors['sexe']) ? 'is-invalid' : (isset($_POST['sexe']) && empty($errors['sexe']) ? 'is-valid' : ''); ?>" 
+                                                    required>
+                                                <option value="">Sélectionnez votre sexe</option>
+                                                <option value="M" <?php echo $field_values['sexe'] == 'M' ? 'selected' : ''; ?>>Homme</option>
+                                                <option value="F" <?php echo $field_values['sexe'] == 'F' ? 'selected' : ''; ?>>Femme</option>
+                                            </select>
+                                            <label for="sexe"><i class="fas fa-venus-mars me-2"></i>Sexe *</label>
+                                            <?php if(isset($errors['sexe'])): ?>
+                                                <div class="invalid-feedback"><?php echo $errors['sexe']; ?></div>
+                                            <?php endif; ?>
                                         </div>
-                                        
-                                        <div class="form-navigation">
-                                            <button type="button" class="btn btn-outline-primary-custom" id="prev3">Précédent</button>
-                                            <button type="submit" name="Inscription" class="btn btn-primary-custom" id="submitBtn">Finaliser l'inscription</button>
+                                    </div>
+                                    
+                                    <!-- Contact -->
+                                    <div class="mb-3">
+                                        <div class="floating-label">
+                                            <input type="text" name="contact" 
+                                                   class="form-control <?php echo isset($errors['contact']) ? 'is-invalid' : (isset($_POST['contact']) && empty($errors['contact']) ? 'is-valid' : ''); ?>" 
+                                                   placeholder=" " 
+                                                   value="<?php echo htmlspecialchars($field_values['contact']); ?>" 
+                                                   required>
+                                            <label for="contact"><i class="fas fa-phone me-2"></i>Contact *</label>
+                                            <?php if(isset($errors['contact'])): ?>
+                                                <div class="invalid-feedback"><?php echo $errors['contact']; ?></div>
+                                            <?php endif; ?>
                                         </div>
+                                    </div>
+                                    
+                                    <!-- Mot de passe -->
+                                    <div class="mb-3">
+                                        <div class="floating-label position-relative">
+                                            <input type="password" name="password" id="password" 
+                                                   class="form-control <?php echo isset($errors['password']) ? 'is-invalid' : (isset($_POST['password']) && empty($errors['password']) ? 'is-valid' : ''); ?>" 
+                                                   placeholder=" " 
+                                                   required>
+                                            <label for="password"><i class="fas fa-lock me-2"></i>Mot de passe *</label>
+                                            <button type="button" class="password-toggle" id="togglePassword">
+                                                <i class="fas fa-eye" id="eyeIcon"></i>
+                                            </button>
+                                            <?php if(isset($errors['password'])): ?>
+                                                <div class="invalid-feedback"><?php echo $errors['password']; ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Confirmation mot de passe -->
+                                    <div class="mb-4">
+                                        <div class="floating-label position-relative">
+                                            <input type="password" id="confirmPassword" name="confirm_password" 
+                                                   class="form-control <?php echo isset($errors['confirm_password']) ? 'is-invalid' : (isset($_POST['confirm_password']) && empty($errors['confirm_password']) ? 'is-valid' : ''); ?>" 
+                                                   placeholder=" " 
+                                                   required>
+                                            <label for="confirmPassword"><i class="fas fa-lock me-2"></i>Confirmer le mot de passe *</label>
+                                            <button type="button" class="password-toggle" id="toggleConfirmPassword">
+                                                <i class="fas fa-eye" id="confirmEyeIcon"></i>
+                                            </button>
+                                            <?php if(isset($errors['confirm_password'])): ?>
+                                                <div class="invalid-feedback"><?php echo $errors['confirm_password']; ?></div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Conditions -->
+                                    <div class="form-check mb-4">
+                                        <input class="form-check-input <?php echo isset($errors['terms']) ? 'is-invalid' : ''; ?>" 
+                                               type="checkbox" 
+                                               id="termsCheck" 
+                                               name="terms" 
+                                               <?php echo isset($_POST['terms']) ? 'checked' : ''; ?>>
+                                        <label class="form-check-label" for="termsCheck">
+                                            J'accepte les <a href="#" class="text-primary">conditions d'utilisation</a> et la <a href="#" class="text-primary">politique de confidentialité</a>
+                                        </label>
+                                        <?php if(isset($errors['terms'])): ?>
+                                            <div class="invalid-feedback" style="display: block;"><?php echo $errors['terms']; ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <!-- Bouton d'inscription -->
+                                    <div class="mb-4">
+                                        <button type="submit" name="Inscription" class="btn btn-primary-custom">
+                                            <i class="fas fa-user-plus me-2"></i>Finaliser l'inscription
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="text-center mt-4">
+                                        <p class="mb-0">
+                                            Vous avez déjà un compte? 
+                                            <a href="connexion-etudiant.php" class="text-primary fw-bold">Connectez-vous ici</a>
+                                        </p>
                                     </div>
                                 </form>
-                                
-                                <div class="text-center mt-4">
-                                    <p class="mb-0">
-                                        Vous avez déjà un compte? 
-                                        <a href="connexion-etudiant.php" class="text-primary fw-bold">Connectez-vous ici</a>
-                                    </p>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -578,18 +627,94 @@ if(isset($_POST["Inscription"])){
 </div>
 
 <!-- Footer -->
-  <footer>
+<footer>
     <div class="container">
-      <div class="row">
-        <div class="col-md-6 text-md-start text-center mb-3 mb-md-0">
-          <p class="mb-0">&copy; 2025 Class Connect. Tous droits réservés.</p>
+        <div class="row">
+            <div class="col-md-6 text-md-start text-center mb-3 mb-md-0">
+                <p class="mb-0">&copy; 2025 Class Connect. Tous droits réservés.</p>
+            </div>
         </div>
-        
-      </div>
     </div>
-  </footer>
+</footer>
+
+<!-- JavaScript minimal pour le toggle mot de passe -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle mot de passe principal
+    const togglePassword = document.getElementById('togglePassword');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const passwordInput = document.getElementById('password');
+    
+    if (togglePassword) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.type === 'password' ? 'text' : 'password';
+            passwordInput.type = type;
+            eyeIcon.classList.toggle('fa-eye');
+            eyeIcon.classList.toggle('fa-eye-slash');
+        });
+    }
+    
+    // Toggle confirmation mot de passe
+    const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+    const confirmEyeIcon = document.getElementById('confirmEyeIcon');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    
+    if (toggleConfirmPassword) {
+        toggleConfirmPassword.addEventListener('click', function() {
+            const type = confirmPasswordInput.type === 'password' ? 'text' : 'password';
+            confirmPasswordInput.type = type;
+            confirmEyeIcon.classList.toggle('fa-eye');
+            confirmEyeIcon.classList.toggle('fa-eye-slash');
+        });
+    }
+    
+    // Formatage automatique du nom en majuscules
+    const nomInput = document.querySelector('input[name="nom"]');
+    if (nomInput) {
+        nomInput.addEventListener('blur', function() {
+            this.value = this.value.toUpperCase().trim();
+        });
+    }
+    
+    // Formatage automatique du prénom (première lettre majuscule)
+    const prenomInput = document.querySelector('input[name="prenom"]');
+    if (prenomInput) {
+        prenomInput.addEventListener('blur', function() {
+            const value = this.value.trim().toLowerCase();
+            this.value = value.charAt(0).toUpperCase() + value.slice(1);
+        });
+    }
+    
+    // Validation de la date de naissance côté client
+    const dateInput = document.querySelector('input[name="date_naissance"]');
+    if (dateInput) {
+        dateInput.addEventListener('blur', function() {
+            const selectedDate = new Date(this.value);
+            const today = new Date();
+            const minDate = new Date();
+            minDate.setFullYear(today.getFullYear() - 100);
+            const maxDate = new Date();
+            maxDate.setFullYear(today.getFullYear() - 10);
+            
+            if (selectedDate > today) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+            } else if (selectedDate < minDate) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+            } else if (selectedDate > maxDate) {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+            } else {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            }
+        });
+    }
+});
+</script>
+
 <script src="../bootstrap-5.3.7\bootstrap-5.3.7\dist\js\bootstrap.bundle.min.js"></script>
 
-<script src="./script_etudiant_inscription.js"></script>
 </body>
 </html>

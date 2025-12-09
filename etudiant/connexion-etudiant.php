@@ -28,15 +28,19 @@ if (isset($_POST["connexion"])) {
             $id_etudiant = $resultat_etudiant["student_id"];
             // Vérification du mot de passe
             if (password_verify($password_input, $resultat_etudiant["password"]) && $resultat_etudiant["role"] === "etudiant") {
-               //verifier si l'etudiants est atribuer a un niveau
+               //verifier si l'etudiants est atribuer a un niveau et ont verifie dans la table payments si l'edutiant en question a effectuer un paiement au moins une fois
                //nous allons recuperer les informations de l'etudiant avec la jointure des tables students, levels
             $requete = $connecter->prepare("SELECT level_id FROM students WHERE student_id = ?");
             $requete->execute([$id_etudiant]);
             $etudiant_info = $requete->fetch(PDO::FETCH_ASSOC);
 
+            // Vérification des paiements
+            $requete_paiements = $connecter->prepare("SELECT COUNT(*) as paiement_count FROM payments WHERE student_id = ?");
+            $requete_paiements->execute([$id_etudiant]);
+            $info_paiements = $requete_paiements->fetch(PDO::FETCH_ASSOC);
 
                 //si les informations sont null alors l'etudiant n'est pas encore attribuer a un niveau ou a une filiere
-                if (!$etudiant_info['level_id']) {
+                if (!$etudiant_info['level_id'] || $info_paiements['paiement_count'] == 0) {
                     $msg2 = "Votre inscription est incomplète. Veuillez contacter l'administration.";
                     header("Location: config-student.php");
                     exit();

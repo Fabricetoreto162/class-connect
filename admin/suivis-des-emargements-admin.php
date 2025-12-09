@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-if (!isset($_SESSION["Nom"])){
+if (!isset($_SESSION["admin-nom"])){
     header("Location:connexion-admin.php");
     exit();
 }
@@ -568,6 +568,12 @@ $taux_presence = $stats['total_emargements'] > 0 ?
                         Paiements et finances
                     </a>
                 </li>
+                 <li class="nav-item">
+                    <a class="nav-link" href="cahier-de-texte.php">
+                        <i class="fas fa-file-lines"></i>
+                         Gestions des cahier de texte
+                    </a>
+                </li>
             </ul>
         </div>
     </nav>
@@ -589,7 +595,7 @@ $taux_presence = $stats['total_emargements'] > 0 ?
                     </div>
                     <div class="dropdown">
                         <button class="btn user-dropdown dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-2"></i><?=$_SESSION["Nom"];?>
+                            <i class="fas fa-user-circle me-2"></i><?=$_SESSION["admin-nom"];?>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profil</a></li>

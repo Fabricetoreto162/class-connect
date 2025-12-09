@@ -1,5 +1,12 @@
 <?php
 session_start();
+if (!isset($_SESSION["teacher_id"])) {
+    // L’utilisateur n'est pas connecté
+    header("Location: connexion-enseignant.php");
+    exit();
+}
+
+$teacher_id = $_SESSION["teacher_id"];
 
 if (!isset($_SESSION["Nom"])) {
     header("Location: connexion-enseignant.php");
@@ -22,7 +29,7 @@ $stmt->execute();
 $academic_years = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // ✅ Récupération des étudiants liés à l'enseignant connecté
-$teacher_id = $_SESSION["user_id_teacher"]; // id du prof connecté
+ // id du prof connecté
 
 $sql = "
 SELECT DISTINCT st.student_id, st.matricule, st.first_name, st.last_name, st.level_id
@@ -215,6 +222,80 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
     }
 
 
+
+    $isEdit = false;
+$editNote = [];
+
+if (isset($_GET["action"]) && $_GET["action"] === "edit" && isset($_GET["id"])) {
+
+    $grade_id = intval($_GET["id"]);
+
+    $sqlEdit = "
+        SELECT 
+            a.grade_id,
+            a.student_id,
+            a.subject_id,
+            a.assignment1,
+            a.assignment2,
+            a.assignment3,
+            a.exam1,
+            a.exam2,
+            a.note_date,
+            CONCAT(s.first_name, ' ', s.last_name) AS student_name,
+            s.matricule,
+            sub.subject_name
+        FROM assignments a
+        JOIN students s ON a.student_id = s.student_id
+        JOIN subjects sub ON a.subject_id = sub.subject_id
+        WHERE a.grade_id = ?
+        LIMIT 1
+    ";
+
+    $stmt = $connecter->prepare($sqlEdit);
+    $stmt->execute([$grade_id]);
+    $editNote = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($editNote) {
+        $isEdit = true;
+    }
+}
+
+
+
+if (isset($_POST["save_edit"])) {
+
+    $grade_id = intval($_POST["grade_id"]);
+    $interrogation1 = $_POST["interrogation1"];
+    $interrogation2 = $_POST["interrogation2"];
+    $interrogation3 = $_POST["interrogation3"];
+    $devoir1 = $_POST["devoir1"];
+    $devoir2 = $_POST["devoir2"];
+    $note_date = $_POST["note_date"];
+    $sqlUpdate = "
+        UPDATE assignments
+        SET 
+            assignment1 = :assignment1,
+            assignment2 = :assignment2,
+            assignment3 = :assignment3,
+            exam1 = :exam1,
+            exam2 = :exam2,
+            note_date = :note_date
+        WHERE grade_id = :grade_id
+    ";
+    $stmt = $connecter->prepare($sqlUpdate);
+    $stmt->bindParam(':assignment1', $interrogation1);
+    $stmt->bindParam(':assignment2', $interrogation2);
+    $stmt->bindParam(':assignment3', $interrogation3);
+    $stmt->bindParam(':exam1', $devoir1);
+    $stmt->bindParam(':exam2', $devoir2);
+    $stmt->bindParam(':note_date', $note_date);
+    $stmt->bindParam(':grade_id', $grade_id, PDO::PARAM_INT);
+    $stmt->execute();
+
+
+    header("Location: notation.php");
+    exit;
+}
 
 
 
@@ -694,7 +775,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
                                             data-bs-toggle="modal" 
                                             data-bs-target="#notationModal"
                                             onclick="ouvrirModal(<?= $etudiant['id']; ?>, '<?= htmlspecialchars($etudiant['nom']); ?>', '<?= htmlspecialchars($etudiant['matricule']); ?>')">
-                                            <i class="fas fa-pen me-1"></i> Noter
+                                            <i class="fas fa-pen me-1"></i> Noter l'étudiant(e)
                                         </button>
                                     </td>
                                 </tr>
@@ -770,11 +851,21 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
                                 <td><strong><?= htmlspecialchars($note['coefficient']); ?></strong></td>
                                 <td><?= date("d-m-Y", strtotime($note["note_date"])); ?></td>
                                 <td>
-                                    <div class="d-flex my-2">
-                                        <a class="btn btn-sm btn-outline-danger me-1" href="notation.php?action=delete&id=<?= $note['grade_id'] ?>">
-                                        <i class="fas fa-trash"></i>
-                                        </a>
-                                    </div>
+
+                                 <div class="btn-group" role="group">
+                                                                        <a href="notation.php?action=edit&id=<?= $note['grade_id'] ?>" 
+                                                                               class="btn btn-sm btn-outline-primary me-1 openEditModal" 
+                                                                              data-id="<?= $note['grade_id'] ?>">
+                                                                            <i class="fas fa-edit"></i>
+                                                                        </a>
+
+                                                     <a class="btn btn-sm btn-outline-danger me-1" href="notation.php?action=delete&id=<?= $note['grade_id'] ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+
+
+                  
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -812,6 +903,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
     </div>
 </div>
 
+<!-- Modal de notation -->
 <!-- Modal de notation -->
 <div class="modal fade" id="notationModal" tabindex="-1" aria-labelledby="notationModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -935,10 +1027,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
             </form>
         </div>
     </div>
-</div>
+ </div>
 
-
-<!-- ✅ Modal de succès -->
+<!--   Modal de succès -->
 <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content text-center bg-danger">
@@ -955,6 +1046,73 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
     </div>
   </div>
 </div>
+
+
+
+
+
+<!-- Modal Edit Note -->
+<div class="modal fade" id="editNoteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Modifier une note</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <form method="POST" action="">
+        <div class="modal-body">
+
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" id="edit_grade_id" name="grade_id">
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Interrogation 1</label>
+                    <input type="number"  min="0" max="20" step="any" id="edit_inter1" name="interrogation1" class="form-control">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Interrogation 2</label>
+                    <input type="number"  min="0" max="20" step="any" id="edit_inter2" name="interrogation2" class="form-control">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Interrogation 3</label>
+                    <input type="number" min="0" max="20" step="any" id="edit_inter3" name="interrogation3" class="form-control">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label>Devoir 1</label>
+                    <input type="number"  min="0" max="20" step="any" id="edit_dev1" name="devoir1" class="form-control">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label>Devoir 2</label >
+                    <input type="number" min="0" max="20" step="any" id="edit_dev2" name="devoir2" class="form-control">
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label>Date</label>
+                    <input type="date" id="edit_date" name="note_date" class="form-control">
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" name="save_edit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+
+
+
 
 
 <script src="../bootstrap-5.3.7/bootstrap-5.3.7/dist/js/bootstrap.bundle.min.js"></script>
@@ -1038,5 +1196,30 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 </script>
+
+<?php if ($isEdit && !empty($editNote)): ?>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    // Remplir le modal
+    document.getElementById('edit_grade_id').value = "<?= $editNote['grade_id'] ?>";
+    document.getElementById('edit_inter1').value   = "<?= $editNote['assignment1'] ?>";
+    document.getElementById('edit_inter2').value   = "<?= $editNote['assignment2'] ?>";
+    document.getElementById('edit_inter3').value   = "<?= $editNote['assignment3'] ?>";
+
+    document.getElementById('edit_dev1').value     = "<?= $editNote['exam1'] ?>";
+    document.getElementById('edit_dev2').value     = "<?= $editNote['exam2'] ?>";
+
+    document.getElementById('edit_date').value     = "<?= $editNote['note_date'] ?>";
+
+    // Ouvrir le modal
+    let modal = new bootstrap.Modal(document.getElementById('editNoteModal'));
+    modal.show();
+});
+</script>
+<?php endif; ?>
+
+
+
 </body>
 </html>

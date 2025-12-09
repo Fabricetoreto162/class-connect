@@ -353,19 +353,7 @@
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <a class="nav-link" href="#about">À propos</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#features">Fonctionnalités</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#contact">Contact</a>
-          </li>
-        </ul>
-      </div>
+      
     </div>
   </nav>
 
@@ -403,6 +391,13 @@
           <div class="role-description">Gérez vos cours, évaluations, ressources et interactions avec les étudiants</div>
         </a>
         
+
+
+      </div>
+
+       <div class="role-selection">
+
+
         <a href="./admin/connexion-admin.php" class="role-card" aria-label="Accéder en tant qu'administrateur">
           <div class="role-icon">
             <i class="fas fa-user-cog"></i>
@@ -410,12 +405,25 @@
           <div class="role-title">Administration</div>
           <div class="role-description">Supervisez et gérez la plateforme éducative, les utilisateurs et les contenus</div>
         </a>
-      </div>
+
+
+          <a href="./parents/parent.php" class="role-card" aria-label="Accéder en tant que parent">
+            <div class="role-icon">
+              <i class="fas fa-user-friends"></i>
+            </div>
+            <div class="role-title">Parent</div>
+            <div class="role-description">Suivez les progrès scolaires de votre enfant et communiquez avec les enseignants</div>
+          </a>
+          
+          
+
+
+
+
+        </div>
+
       
-      <div class="mt-5">
-        <p class="text-muted mb-3">Vous avez déjà un compte ?</p>
-        <a href="#" class="btn btn-outline-primary-custom">Se connecter</a>
-      </div>
+      
     </div>
   </div>
 

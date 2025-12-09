@@ -6,6 +6,14 @@ if (!isset($_SESSION["Nom"])){
     exit();
 }
 
+if (!isset($_SESSION["teacher_id"])) {
+    // L’utilisateur n'est pas connecté
+    header("Location: connexion-enseignant.php");
+    exit();
+}
+
+$teacher_id = $_SESSION["teacher_id"];
+
 if (isset($_POST["deconnexion"])){
     $_SESSION = array();
     session_destroy();
@@ -17,7 +25,7 @@ include("../connexion-bases.php");
 
 
 // ✅ Récupération des étudiants liés à l'enseignant connecté
-$teacher_id = $_SESSION["user_id_teacher"]; // id du prof connecté
+
 
 $sql = "
 SELECT DISTINCT st.student_id, st.matricule, st.first_name, st.last_name, st.level_id
@@ -43,14 +51,28 @@ foreach ($etudiants_data as $etudiant) {
 
 
 
+$query = "
+SELECT 
+    s.schedule_id,
+    sub.subject_name,
+    sub.subject_id,
+    s.day, 
+    s.start_time, 
+    s.end_time,
+    r.classroom_name,
+    d.department_name
+FROM schedules s
+JOIN classrooms r ON s.classroom_id = r.classroom_id
+JOIN subjects sub ON s.subject_id = sub.subject_id
+JOIN levels l ON sub.level_id = l.level_id
+JOIN departments d ON l.department_id = d.department_id
+WHERE s.teacher_id = ?
+";
 
-$query = "SELECT DISTINCT s.schedule_id, m.subject_name 
-          FROM schedules s
-          INNER JOIN subjects m ON s.subject_id = m.subject_id
-          WHERE s.teacher_id = ?";
 $stmt = $connecter->prepare($query);
 $stmt->execute([$teacher_id]);
 $subjects = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 
 
 
@@ -781,17 +803,19 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
                     </div>
 
                     <!-- MATIÈRE -->
-                    <div class="mb-4">
-                        <label for="subject_id" class="form-label">Matière :</label>
-                        <select name="subject_id" id="subject_id" class="form-control">
-                            <option value="">-- Sélectionner une matière --</option>
-                            <?php foreach($subjects as $subject): ?>
-                            <option value="<?= $subject['schedule_id'] ?>">
-                                <?= htmlspecialchars($subject['subject_name']) ?>
-                            </option>
+                     <div class="mb-4">
+                        <label for="subject_select" class="form-label">Matière :</label>
+                     <select id="subject_select" name="schedule_id" class="form-select" required>
+                            <option value="">Choisir une matière...</option>
+                            <?php foreach ($subjects as $subject): ?>
+                                <option value="<?= $subject['schedule_id'] ?>" 
+                                        data-filiere="<?= htmlspecialchars($subject['department_name']) ?>">
+                                    <?= htmlspecialchars($subject['subject_name']) ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
-                    </div>
+
+                     </div>
 
                     <!-- INFORMATIONS DU COURS -->
                     <div id="details_cours" class="row mb-4">
@@ -972,7 +996,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
 </script>
 
 <script>
-document.getElementById('subject_id').addEventListener('change', function() {
+document.getElementById('subject_select').addEventListener('change', function() {
   let scheduleId = this.value;
 
   if (scheduleId) {

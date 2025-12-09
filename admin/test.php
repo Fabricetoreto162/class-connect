@@ -709,7 +709,7 @@ if ($selected_student && count($notes_data) > 0) {
 <header class="navbar navbar-light sticky-top main-header flex-md-nowrap p-3">
     <div class="container-fluid">
         <a class="navbar-brand col-md-3 col-lg-2 me-0" href="#">
-            <i class="fas fa-graduation-cap me-2"></i>Class <span class="text-warning">Connect</span>
+            <i class="fas fa-graduation-cap me-2"></i>Class <span class="text-warning" style="font-family: cubic;">Connect</span>
         </a>
         
         <div class="d-flex align-items-center">
@@ -817,9 +817,9 @@ if ($selected_student && count($notes_data) > 0) {
                     <p class="text-muted mb-0">Gestion des notes et résultats académiques</p>
                 </div>
                 <div class="d-flex align-items-center gap-3">
-                    <div class="date-display">
+                   <div class="date-display">
                         <i class="fas fa-clock me-2"></i>
-                        <span id="dateHeure">Chargement...</span>
+                        <span id="dateHeure"></span> <!-- Vérifiez que cette ligne est bien présente -->
                     </div>
                     <div class="dropdown">
                         <button class="btn user-dropdown dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown">
@@ -1072,7 +1072,7 @@ if ($selected_student && count($notes_data) > 0) {
                                 <button id="download-pdf" class="btn btn-danger">
                                     <i class="fas fa-file-pdf me-2"></i>Télécharger le bulletin en PDF
                                 </button>
-                               
+                                
                                 <button onclick="window.print()" class="btn btn-secondary">
                                     <i class="fas fa-print me-2"></i>Imprimer toute la page
                                 </button>
@@ -1108,31 +1108,6 @@ if ($selected_student && count($notes_data) > 0) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-// Fonction pour afficher la date et l'heure
-function afficherDateHeure() {
-    const maintenant = new Date();
-    
-    // Format français manuel pour plus de fiabilité
-    const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-    const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
-    
-    const jourSemaine = jours[maintenant.getDay()];
-    const jour = maintenant.getDate();
-    const moisNom = mois[maintenant.getMonth()];
-    const annee = maintenant.getFullYear();
-    
-    const heures = maintenant.getHours().toString().padStart(2, '0');
-    const minutes = maintenant.getMinutes().toString().padStart(2, '0');
-    const secondes = maintenant.getSeconds().toString().padStart(2, '0');
-    
-    const dateHeure = `${jourSemaine} ${jour} ${moisNom} ${annee} ${heures}:${minutes}:${secondes}`;
-    
-    const element = document.getElementById("dateHeure");
-    if (element) {
-        element.textContent = dateHeure;
-    }
-}
-
 // Fonction pour imprimer seulement le bulletin
 document.getElementById('print-bulletin').addEventListener('click', function() {
     // Créer une fenêtre popup pour l'impression
@@ -1325,19 +1300,55 @@ document.getElementById("download-pdf").addEventListener("click", function () {
     html2pdf().set(options).from(cloneElement).save();
 });
 
-// Initialiser l'affichage de la date et l'heure au chargement
+// Animation pour les cartes au chargement
 document.addEventListener('DOMContentLoaded', function() {
-    // Afficher la date et l'heure immédiatement
-    afficherDateHeure();
-    
-    // Mettre à jour toutes les secondes
-    setInterval(afficherDateHeure, 1000);
-    
-    // Animation pour les cartes
     const cards = document.querySelectorAll('.stat-card, .notes-card, .data-table, .bulletin-card');
     cards.forEach((card, index) => {
         card.style.animationDelay = `${index * 0.1}s`;
     });
+});
+
+// Fonction pour afficher la date et l'heure
+// Fonction pour afficher la date et l'heure
+function afficherDateHeure() {
+    const maintenant = new Date();
+    
+    // Format plus simple et fiable
+    const jours = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+    const mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+    
+    const jourSemaine = jours[maintenant.getDay()];
+    const jour = maintenant.getDate();
+    const moisNom = mois[maintenant.getMonth()];
+    const annee = maintenant.getFullYear();
+    
+    const heures = maintenant.getHours().toString().padStart(2, '0');
+    const minutes = maintenant.getMinutes().toString().padStart(2, '0');
+    const secondes = maintenant.getSeconds().toString().padStart(2, '0');
+    
+    const dateHeure = `${jourSemaine} ${jour} ${moisNom} ${annee} ${heures}:${minutes}:${secondes}`;
+    
+    const element = document.getElementById("dateHeure");
+    if (element) {
+        element.textContent = dateHeure;
+    }
+}
+
+
+// Test de l'affichage de la date
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM chargé");
+    
+    const element = document.getElementById("dateHeure");
+    console.log("Élément dateHeure trouvé:", element);
+    
+    if (!element) {
+        console.error("ERREUR: L'élément avec id='dateHeure' n'a pas été trouvé !");
+    } else {
+        console.log("Fonction afficherDateHeure appelée");
+        afficherDateHeure();
+        setInterval(afficherDateHeure, 1000);
+    }
 });
 </script>
 
